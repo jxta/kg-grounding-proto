@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>自分の地図 — 素因数分解</title>
+<style>
+  :root {
+    --ink: #111; --ink2: #444; --ink3: #777; --line: #bbb; --line2: #ddd; --paper: #fff; --paper2: #f4f4f4;
+    --lv0: #fff; --lv1: #fff; --lv2: #d9d9d9; --lv3: #7a7a7a; --lv4: #000;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font-family: -apple-system, "Hiragino Sans", "Yu Gothic", "Noto Sans CJK JP", "Noto Sans JP", "Segoe UI", sans-serif;
+         font-size: 14px; line-height: 1.55; }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header .name { color: var(--ink2); }
+  header .spacer { flex: 1; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { background: var(--paper); border: 1px solid var(--ink); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:hover { background: var(--paper2); }
+  button.primary { background: var(--ink); color: #fff; }
+  button.primary:hover { background: #333; }
+  button.quiet { border-color: var(--line); color: var(--ink2); }
+  button.small { padding: 2px 8px; font-size: 12px; }
+  button:disabled { opacity: .45; cursor: default; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: calc(100% - 46px); }
+  #mapwrap { position: relative; overflow: hidden; border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  #mapwrap .toolbar { display: flex; gap: 8px; padding: 8px 12px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line2); }
+  #mapwrap .toolbar .hint { color: var(--ink3); font-size: 12px; }
+  #map { flex: 1; width: 100%; height: 100%; }
+  svg { display: block; width: 100%; height: 100%; }
+  svg text { font-family: inherit; pointer-events: none; }
+  .node { cursor: pointer; }
+  .node rect.box { stroke: var(--ink); stroke-width: 1; }
+  .node.selected rect.box { stroke-width: 2.5; }
+  .node.lv0 rect.box { stroke: #888; stroke-dasharray: 3 3; }
+  .node.lv0 text { fill: #777; }
+  .node.lv1 text, .node.lv2 text { fill: #111; }
+  .node.lv3 text, .node.lv4 text { fill: #fff; }
+  .node rect.halo { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+  .node.edge-src rect.box { stroke-dasharray: 4 2; stroke-width: 2.5; }
+  .ref-edge { stroke: #c8c8c8; fill: none; }
+  .my-edge { stroke: #000; fill: none; }
+  .weak-edge { stroke: #000; fill: none; stroke-dasharray: 5 3; }
+  .legend text { font-size: 11px; fill: #333; }
+  aside { display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; border: 0; border-radius: 0; padding: 9px 4px; background: var(--paper2); color: var(--ink2); }
+  .tabs button.active { background: var(--paper); color: var(--ink); border-bottom: 2px solid var(--ink); }
+  .panel { display: none; overflow: auto; padding: 12px 14px; flex: 1; min-height: 0; }
+  .panel.active { display: block; }
+  h2 { font-size: 15px; margin: 4px 0 8px; }
+  h3 { font-size: 13px; margin: 14px 0 6px; color: var(--ink2); text-transform: none; }
+  .kind { font-size: 12px; color: var(--ink3); }
+  .muted { color: var(--ink3); font-size: 12px; }
+  .levels { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 6px 0; }
+  .levels label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: 1px solid var(--line2); border-radius: 6px; cursor: pointer; }
+  .levels label.current { border-color: var(--ink); }
+  .swatch { width: 22px; height: 12px; border: 1px solid #111; border-radius: 3px; flex: none; }
+  .swatch.l0 { background: #fff; border-style: dashed; border-color: #888; }
+  .swatch.l1 { background: #fff; } .swatch.l2 { background: #d9d9d9; } .swatch.l3 { background: #7a7a7a; } .swatch.l4 { background: #000; }
+  textarea { width: 100%; min-height: 64px; border: 1px solid var(--line); border-radius: 6px; padding: 6px; resize: vertical; }
+  input[type=text], input[type=password] { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { border: 1px solid var(--line); border-radius: 12px; padding: 1px 8px; font-size: 12px; background: var(--paper2); }
+  .exp { border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+  .exp .t { font-weight: 600; }
+  .exp .d { color: var(--ink2); font-size: 12px; }
+  .exp.adv .t::after { content: "　発展"; color: var(--ink3); font-weight: 400; font-size: 12px; }
+  .warn { border-left: 3px solid var(--ink); padding: 4px 8px; background: var(--paper2); margin: 6px 0; font-size: 13px; }
+  ul.plain { list-style: none; padding: 0; margin: 4px 0; }
+  ul.plain li { display: flex; gap: 6px; align-items: center; padding: 3px 0; border-bottom: 1px dotted var(--line2); }
+  ul.plain li span { flex: 1; }
+  /* chat */
+  #chat { display: flex; flex-direction: column; height: 100%; }
+  #chatlog { flex: 1; overflow: auto; padding-bottom: 8px; }
+  .msg { margin: 6px 0; display: flex; }
+  .msg .bubble { max-width: 92%; padding: 7px 10px; border-radius: 10px; white-space: pre-wrap; }
+  .msg.ai .bubble { background: var(--paper2); border: 1px solid var(--line2); }
+  .msg.me { justify-content: flex-end; }
+  .msg.me .bubble { background: var(--ink); color: #fff; }
+  .msg .who { font-size: 11px; color: var(--ink3); margin: 0 4px 2px; }
+  .card { border: 1px solid var(--ink); border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: #fff; }
+  .card .t { font-weight: 600; margin-bottom: 4px; }
+  .card textarea { min-height: 48px; }
+  #chatform { display: flex; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line2); }
+  #chatform input { flex: 1; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .quick button { font-size: 12px; }
+  /* history */
+  .snap { border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+  .snap .t { font-weight: 600; }
+  .snap svg { width: 100%; height: auto; border: 1px solid var(--line2); border-radius: 4px; margin-top: 4px; background: #fff; }
+  pre.diff { background: var(--paper2); padding: 8px; border-radius: 6px; white-space: pre-wrap; font-size: 12px; }
+  .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  details { margin: 6px 0; } summary { cursor: pointer; color: var(--ink2); }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 52vh 1fr; height: auto; min-height: calc(100% - 46px); }
+    #mapwrap { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink: #eee; --ink2: #ccc; --ink3: #999; --line: #555; --line2: #3a3a3a; --paper: #151515; --paper2: #222; }
+    :root:not([data-theme="light"]) svg { background: #fff; }
+    :root:not([data-theme="light"]) .snap svg, :root:not([data-theme="light"]) .card { background: #fff; color: #111; }
+    :root:not([data-theme="light"]) .card textarea, :root:not([data-theme="light"]) .card input { color: #111; background: #fff; }
+    :root:not([data-theme="light"]) .card button { color: #111; background: #fff; border-color: #111; }
+    :root:not([data-theme="light"]) .card button.primary { color: #fff; background: #111; }
+    :root:not([data-theme="light"]) .msg.me .bubble { background: #eee; color: #111; }
+    :root:not([data-theme="light"]) .swatch { border-color: #eee; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>自分の地図 — 素因数分解</h1>
+  <span class="name" id="who"></span>
+  <span class="spacer"></span>
+  <button id="btn-edge" title="ノードを 2 つ順に押す">道をつなぐ</button>
+  <button id="btn-snap">記録する</button>
+  <button class="quiet" id="btn-help">使い方</button>
+</header>
+<main>
+  <section id="mapwrap">
+    <div class="toolbar">
+      <label><input type="checkbox" id="chk-ref" checked> 教科書の道を薄く表示</label>
+      <label>比べる：<select id="sel-compare"><option value="">（なし）</option></select></label>
+      <span class="hint" id="mode-hint">ノードを押すと右に詳しく出ます</span>
+    </div>
+    <div id="map"></div>
+    <div class="toast" id="toast"></div>
+  </section>
+  <aside>
+    <div class="tabs">
+      <button data-tab="node" class="active">ノード</button>
+      <button data-tab="ai">AI</button>
+      <button data-tab="hist">記録</button>
+      <button data-tab="set">設定</button>
+    </div>
+    <div class="panel active" id="panel-node"></div>
+    <div class="panel" id="panel-ai"><div id="chat"><div id="chatlog"></div>
+      <div class="quick">
+        <button class="small" data-q="次に何をたしかめる？">次に何をたしかめる？</button>
+        <button class="small" data-q="この地図に問いをください">問いをください</button>
+        <button class="small" data-q="印の相談">印の相談</button>
+      </div>
+      <form id="chatform"><input type="text" id="chatin" placeholder="AI に話しかける（例：一意性を説明できるにしたい）" autocomplete="off"><button class="primary">送る</button></form>
+    </div></div>
+    <div class="panel" id="panel-hist"></div>
+    <div class="panel" id="panel-set"></div>
+  </aside>
+</main>
+
+<script>
+// =====================================================================
+// 単元の地図（教科書側）。ノートの UNIT と同じ内容。別の単元にするときはここを差し替える
+// =====================================================================
+const UNIT = {
+  unit: "素因数分解（中学1年）",
+  nodes: {
+    divisor_multiple: {label: "約数と倍数", kind: "定義", pos: [5.5, 6], hint: "12 の約数を全部書き出して、倍数との関係をたしかめる"},
+    composite:        {label: "合成数", kind: "定義", pos: [2.5, 5], hint: "篩で消された数はどんな数？（実験1）"},
+    prime:            {label: "素数", kind: "定義", pos: [8.5, 5], hint: "100 までの表で篩をかける（実験1）"},
+    factorization:    {label: "素因数分解", kind: "性質", pos: [4.0, 4], hint: "大きな数を小さい素数で割っていく（実験2）"},
+    one_not_prime:    {label: "1は素数ではない", kind: "約束", pos: [7.0, 4], hint: "1 を素数に入れると何が困る？（実験3）"},
+    sieve:            {label: "エラトステネス\nの篩", kind: "方法", pos: [11.0, 5], hint: "10 までの素数で消すだけで 100 まで足りるのはなぜ？（実験1b）"},
+    exponent:         {label: "累乗の表し方", kind: "書き方", pos: [1.0, 3], hint: "2×2×2×3×3 を短く書く（実験2）"},
+    trial_division:   {label: "素因数分解の手順", kind: "方法", pos: [4.8, 3], hint: "割っていけば必ず終わるのはなぜ？（実験2）"},
+    uniqueness:       {label: "分解はただ一通り\n（一意性）", kind: "性質", pos: [7.0, 3], hint: "因数の木を違う順で作ってみる（実験3）"},
+    square:           {label: "平方数", kind: "性質", pos: [1.0, 2], hint: "平方数の素因数分解の指数を見る（実験6）"},
+    gcd_lcm:          {label: "最大公約数・\n最小公倍数", kind: "方法", pos: [3.0, 2], hint: "24 と 36 の素因数分解を並べて、共通の部分を見る（実験9）"},
+    divisor_count:    {label: "約数の個数", kind: "性質", pos: [7.0, 2], hint: "約数の個数と指数の関係を表にする（実験5）"},
+    infinite_primes:  {label: "素数は無限にある", kind: "性質", pos: [9.8, 3], hint: "小さい素数を全部かけて 1 を足す（実験7）", advanced: true},
+    prime_race:       {label: "素数の偏り\n（4で割った余り）", kind: "性質", pos: [11.8, 3], hint: "4 で割って 1 余る素数と 3 余る素数を数える（実験8）", advanced: true},
+  },
+  edges: [
+    ["divisor_multiple", "prime", "前提"], ["divisor_multiple", "composite", "前提"],
+    ["prime", "one_not_prime", "約束"], ["prime", "sieve", "方法"], ["prime", "factorization", "前提"],
+    ["composite", "factorization", "前提"], ["factorization", "trial_division", "方法"],
+    ["factorization", "exponent", "書き方"], ["factorization", "uniqueness", "性質"],
+    ["one_not_prime", "uniqueness", "理由"], ["uniqueness", "divisor_count", "使う"],
+    ["factorization", "gcd_lcm", "使う"], ["exponent", "square", "使う"],
+    ["prime", "infinite_primes", "発展"], ["prime", "prime_race", "発展"],
+  ],
+  // たしかめるための実験ノート。nodes：関係するノード。file：experiments/ の中のノート名
+  experiments: [
+    {id: "exp01",  file: "01_sieve.ipynb",          title: "実験1　篩で素数を見つける",          min: 5,  nodes: ["prime", "composite", "sieve", "divisor_multiple"], desc: "100 までの表を消していく。残った数は？ 1 は？"},
+    {id: "exp01b", file: "01b_sieve_bound.ipynb",   title: "実験1b　なぜ 7 までで足りる？",      min: 5,  nodes: ["sieve", "composite"], desc: "√N より大きい素因数しか持たない合成数を数える（0 個）"},
+    {id: "exp02",  file: "02_trial_division.ipynb", title: "実験2　割っていく",                  min: 5,  nodes: ["factorization", "trial_division", "exponent"], desc: "自分の手順と sympy を 2〜10000 で照合"},
+    {id: "exp03",  file: "03_factor_tree.ipynb",    title: "実験3　因数の木をちがう順で",        min: 8,  nodes: ["uniqueness", "one_not_prime", "factorization"], desc: "360 を 3 通りに分ける。2〜2000 をでたらめな順で"},
+    {id: "exp04",  file: "04_h_world.ipynb",        title: "実験4　H の世界（一意性が壊れる）",  min: 8,  nodes: ["uniqueness"], advanced: true, desc: "4n+1 の数だけの世界では 441 = 21×21 = 9×49"},
+    {id: "exp05",  file: "05_divisor_count.ipynb",  title: "実験5　約数の個数",                  min: 8,  nodes: ["divisor_count", "uniqueness", "factorization"], desc: "(指数+1) の積を予想して 1〜10000 で確認。72 の表"},
+    {id: "exp06",  file: "06_square.ipynb",         title: "実験6　平方数と指数",                min: 5,  nodes: ["square", "exponent"], desc: "指数がすべて偶数 ⇔ 平方数"},
+    {id: "exp07",  file: "07_euclid.ipynb",         title: "実験7　素数は無限にある",            min: 8,  nodes: ["infinite_primes", "factorization"], advanced: true, desc: "2×3×…×p + 1 の素因数を見る。証明の筋を追う"},
+    {id: "exp08",  file: "08_prime_race.ipynb",     title: "実験8　素数のレース",                min: 5,  nodes: ["prime_race", "prime"], advanced: true, desc: "4 で割った余りで数くらべ。26861 で逆転"},
+    {id: "exp09",  file: "09_gcd_lcm.ipynb",        title: "実験9　最大公約数・最小公倍数",      min: 8,  nodes: ["gcd_lcm", "factorization", "uniqueness"], desc: "分解を並べて min / max の指数をとる。2〜200 で確認"},
+    {id: "scratch", file: "00_scratch.ipynb",       title: "自由実験　自分で試す",               min: 10, nodes: [], desc: "AI と相談して決めた実験を自分で書く"},
+  ],
+};
+const LEVELS = ["まだ", "聞いた", "たしかめた", "説明できる", "証明できる"];
+const LEVEL_DESC = ["まだ触れていない", "先生や教科書から聞いた", "実験して、自分の目で見た", "なぜそうなるかを、自分の言葉で言える", "いつでも成り立つ理由を示せる"];
+const NODE_IDS = Object.keys(UNIT.nodes);
+const nameOf = id => UNIT.nodes[id].label.replace("\n", "");
+const expsFor = id => UNIT.experiments.filter(e => e.nodes.includes(id));
+const now = () => { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+// =====================================================================
+// 自分の地図（ノートの my_map.json と同じ形）
+// =====================================================================
+function newMap(name) {
+  const nodes = {};
+  for (const id of NODE_IDS) nodes[id] = {level: 0, why: "", evidence: [], uses: []};
+  return {name, unit: UNIT.unit, created: now(), nodes, edges: [], log: [], snapshots: [], inbox: []};
+}
+function heard(m) {
+  const ids = NODE_IDS.filter(id => !UNIT.nodes[id].advanced);
+  for (const id of ids) if (m.nodes[id].level < 1) m.nodes[id].level = 1;
+  m.log.push({t: now(), what: "heard", nodes: ids});
+}
+function mark(m, node, level, why, evidence, uses) {
+  const n = m.nodes[node], old = n.level;
+  n.level = level;
+  if (why) n.why = why;
+  if (evidence && evidence.length) n.evidence = Array.from(new Set([...n.evidence, ...evidence]));
+  if (uses) n.uses = Array.from(new Set(uses));
+  m.log.push({t: now(), what: "mark", node, from: old, to: level, why: why || "", evidence: evidence || [], uses: uses || []});
+  return old;
+}
+function link(m, a, b, why) {
+  const e = m.edges.find(e => e.from === a && e.to === b);
+  if (e) { if (why) e.why = why; return false; }
+  m.edges.push({from: a, to: b, why: why || "", t: now()});
+  m.log.push({t: now(), what: "link", from: a, to: b, why: why || ""});
+  return true;
+}
+function unlink(m, a, b) {
+  m.edges = m.edges.filter(e => !(e.from === a && e.to === b));
+  m.log.push({t: now(), what: "unlink", from: a, to: b});
+}
+function snapshot(m, label) {
+  const s = {label, t: now(), levels: {}, edges: m.edges.map(e => [e.from, e.to])};
+  for (const id of NODE_IDS) s.levels[id] = m.nodes[id].level;
+  m.snapshots.push(s);
+  return m.snapshots.length - 1;
+}
+function weakUses(m) {
+  const out = [];
+  for (const id of NODE_IDS) for (const u of m.nodes[id].uses) if (m.nodes[u] && m.nodes[u].level < m.nodes[id].level) out.push([u, id]);
+  return out;
+}
+function diffText(m, i, j) {
+  const a = m.snapshots[i], b = m.snapshots[j];
+  const lines = [`[${a.label}] → [${b.label}]`];
+  const ups = NODE_IDS.filter(id => a.levels[id] !== b.levels[id]).sort((x, y) => (b.levels[y]-a.levels[y]) - (b.levels[x]-a.levels[x]));
+  for (const id of ups) lines.push(`  ${b.levels[id] > a.levels[id] ? "↑" : "↓"} ${nameOf(id)}：${LEVELS[a.levels[id]]} → ${LEVELS[b.levels[id]]}`);
+  const inB = new Set(b.edges.map(e => e.join(">"))), inA = new Set(a.edges.map(e => e.join(">")));
+  for (const e of m.edges) { const k = e.from + ">" + e.to; if (inB.has(k) && !inA.has(k)) lines.push(`  ＋ 道：${nameOf(e.from)} → ${nameOf(e.to)}${e.why ? "（" + e.why + "）" : ""}`); }
+  if (!ups.length) lines.push("  （印の変化なし）");
+  return lines.join("\n");
+}
+// 問いかけ（規則）— ノートの ask_me と同じ順で種類を順ぐりに
+function askMe(m, k) {
+  const cats = {weak: [], predict: [], claim2: [], heard: [], method2: [], edge: [], def2: [], explain3: [], connect: []};
+  for (const [u, node] of weakUses(m)) cats.weak.push(`「${nameOf(node)}」の説明は「${nameOf(u)}」を使っている。でも「${nameOf(u)}」は『${LEVELS[m.nodes[u].level]}』止まり。この説明は何を前提にしている？ それでいい？`);
+  for (const id of NODE_IDS) {
+    const info = UNIT.nodes[id], lv = m.nodes[id].level;
+    if (lv <= 1 && !info.advanced) cats.heard.push(`「${nameOf(id)}」はまだ『${LEVELS[lv]}』。実験で確かめられる？ ヒント：${info.hint}`);
+    else if (lv === 2 && info.advanced) cats.predict.push(`「${nameOf(id)}」はどこまで見た？ この先はどうなると思う？ 予想を書いてみよう（当たっても外れても記録する）`);
+    else if (lv === 2 && info.kind === "性質") cats.claim2.push(`「${nameOf(id)}」はどこまで確かめた？ その先でも成り立つと言える？ 『いつでも』と言うには何が要る？`);
+    else if (lv === 2 && info.kind === "方法") cats.method2.push(`「${nameOf(id)}」はうまくいった。なぜその方法でうまくいく？ ヒント：${info.hint}`);
+    else if (lv === 2) cats.def2.push(`「${nameOf(id)}」を自分の言葉で言うと？ 例を 2 つと、例でないものを 1 つ挙げられる？`);
+    else if (lv === 3) cats.explain3.push(`「${nameOf(id)}」を、一度も習っていない友だちに説明するとしたら、最初の一文は？`);
+  }
+  for (const e of m.edges) if (!e.why) cats.edge.push(`きみの道「${nameOf(e.from)} → ${nameOf(e.to)}」：どんなつながり？ ひとことで。`);
+  const mine = new Set(m.edges.map(e => e.from + ">" + e.to));
+  for (const [a, b] of UNIT.edges) if (!mine.has(a + ">" + b) && m.nodes[a].level >= 2 && m.nodes[b].level >= 2)
+    cats.connect.push(`「${nameOf(a)}」と「${nameOf(b)}」はどちらも確かめた。この二つはつながっている？ つながっているなら、どう？`);
+  const qs = [];
+  while (qs.length < k && Object.values(cats).some(c => c.length)) for (const c of Object.values(cats)) if (c.length && qs.length < k) qs.push(c.shift());
+  return qs;
+}
+// 次に何をたしかめる？（規則）：弱いノードに向く実験を、短いものから
+function suggestExperiments(m, nodeId) {
+  const done = new Set((m.inbox || []).map(x => x.exp));
+  let pool = UNIT.experiments.filter(e => e.id !== "scratch");
+  if (nodeId) pool = pool.filter(e => e.nodes.includes(nodeId));
+  const score = e => {
+    const weakest = Math.min(...e.nodes.map(n => m.nodes[n].level));
+    return (done.has(e.id) ? 10 : 0) + weakest * 2 + (e.advanced ? 1 : 0) + e.min / 10;
+  };
+  return pool.sort((x, y) => score(x) - score(y));
+}
+
+// =====================================================================
+// 地図を描く（SVG、モノクロ）
+// =====================================================================
+const S = 75, BOX_W = 1.5 * S, BOX_H = 0.5 * S, XLIM = [-0.4, 12.9], YLIM = [1.05, 6.6];
+const VW = (XLIM[1] - XLIM[0]) * S, VH = (YLIM[1] - YLIM[0]) * S;
+const P = id => [(UNIT.nodes[id].pos[0] - XLIM[0]) * S, (YLIM[1] - UNIT.nodes[id].pos[1]) * S];
+function boundary(c, d, w = BOX_W, h = BOX_H) {
+  const [dx, dy] = d, tx = dx ? (w/2) / Math.abs(dx) : Infinity, ty = dy ? (h/2) / Math.abs(dy) : Infinity, t = Math.min(tx, ty);
+  return [c[0] + dx*t, c[1] + dy*t];
+}
+function bezierPts(s, e, rad, n = 30) {
+  const dx = e[0]-s[0], dy = e[1]-s[1], cx = (s[0]+e[0])/2 - rad*dy, cy = (s[1]+e[1])/2 + rad*dx, pts = [];
+  for (let i = 1; i < n; i++) { const t = i/n; pts.push([(1-t)**2*s[0] + 2*(1-t)*t*cx + t*t*e[0], (1-t)**2*s[1] + 2*(1-t)*t*cy + t*t*e[1]]); }
+  return {pts, cx, cy};
+}
+const hits = (pts, boxes, mg = 4) => boxes.reduce((n, c) => n + (pts.some(([x, y]) => Math.abs(x-c[0]) < BOX_W/2+mg && Math.abs(y-c[1]) < BOX_H/2+mg) ? 1 : 0), 0);
+function arrowPath(p, q, avoid, offset = 0) {
+  const dx = q[0]-p[0], dy = q[1]-p[1], L = Math.hypot(dx, dy), ux = dx/L, uy = dy/L;
+  if (offset) { p = [p[0] + uy*offset, p[1] - ux*offset]; q = [q[0] + uy*offset, q[1] - ux*offset]; }
+  let s = boundary(p, [ux, uy]), e = boundary(q, [-ux, -uy]);
+  s = [s[0] + ux*4, s[1] + uy*4]; e = [e[0] - ux*7, e[1] - uy*7];
+  let best = null;
+  for (const r of [0, 0.22, -0.22, 0.32, -0.32, 0.45, -0.45]) {
+    const b = bezierPts(s, e, r), n = hits(b.pts, avoid);
+    if (!best || n < best.n) best = {n, r, b};
+    if (n === 0) break;
+  }
+  return best.r === 0 ? `M${s[0]},${s[1]} L${e[0]},${e[1]}` : `M${s[0]},${s[1]} Q${best.b.cx},${best.b.cy} ${e[0]},${e[1]}`;
+}
+const svgEl = (tag, attrs = {}, text) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) el.setAttribute(k, attrs[k]); if (text != null) el.textContent = text; return el; };
+const FILLS = ["#fff", "#fff", "#d9d9d9", "#7a7a7a", "#000"];
+
+function renderMap(m, opts) {
+  const {compare = null, labels = true, refEdges = true, selected = null, edgeSrc = null, legend = true, onClick = null} = opts || {};
+  const base = compare != null ? m.snapshots[compare] : null;
+  const svg = svgEl("svg", {viewBox: `0 0 ${VW} ${VH + (legend ? 30 : 0)}`, xmlns: "http://www.w3.org/2000/svg"});
+  const defs = svgEl("defs");
+  for (const [id, color] of [["ah-ref", "#c8c8c8"], ["ah-my", "#000"]]) {
+    const mk = svgEl("marker", {id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: id === "ah-my" ? 10 : 8, markerHeight: id === "ah-my" ? 10 : 8, markerUnits: "userSpaceOnUse", orient: "auto-start-reverse"});
+    mk.appendChild(svgEl("path", {d: "M0,0 L10,5 L0,10 z", fill: color})); defs.appendChild(mk);
+  }
+  svg.appendChild(defs);
+  svg.appendChild(svgEl("rect", {x: 0, y: 0, width: VW, height: VH + 30, fill: "#fff"}));
+  const others = (a, b) => NODE_IDS.filter(k => k !== a && k !== b).map(P);
+  const mine = new Set(m.edges.map(e => e.from + ">" + e.to));
+  const g = svgEl("g");
+  if (refEdges) for (const [a, b] of UNIT.edges) g.appendChild(svgEl("path", {class: "ref-edge", d: arrowPath(P(a), P(b), others(a, b)), "stroke-width": 1.2, "marker-end": "url(#ah-ref)"}));
+  for (const e of m.edges) {
+    const isNew = base && !base.edges.some(x => x[0] === e.from && x[1] === e.to);
+    const off = (UNIT.edges.some(x => x[0] === e.to && x[1] === e.from) || mine.has(e.to + ">" + e.from)) ? 7 : 0;
+    g.appendChild(svgEl("path", {class: "my-edge", d: arrowPath(P(e.from), P(e.to), others(e.from, e.to), off), "stroke-width": isNew ? 2.6 : 1.8, "marker-end": "url(#ah-my)"}));
+  }
+  for (const [u, k] of weakUses(m)) {
+    const off = mine.has(u + ">" + k) ? -8 : 0;
+    g.appendChild(svgEl("path", {class: "weak-edge", d: arrowPath(P(u), P(k), others(u, k), off), "stroke-width": 1.8, "marker-end": "url(#ah-my)"}));
+  }
+  svg.appendChild(g);
+  for (const id of NODE_IDS) {
+    const c = P(id), lv = m.nodes[id].level, changed = base && lv !== base.levels[id];
+    const ng = svgEl("g", {class: `node lv${lv}${selected === id ? " selected" : ""}${edgeSrc === id ? " edge-src" : ""}`, "data-id": id});
+    if (changed) ng.appendChild(svgEl("rect", {class: "halo", x: c[0]-BOX_W/2-6, y: c[1]-BOX_H/2-6, width: BOX_W+12, height: BOX_H+12, rx: 12}));
+    ng.appendChild(svgEl("rect", {class: "box", x: c[0]-BOX_W/2, y: c[1]-BOX_H/2, width: BOX_W, height: BOX_H, rx: 8, fill: FILLS[lv]}));
+    if (labels) {
+      const lines = UNIT.nodes[id].label.split("\n");
+      const t = svgEl("text", {x: c[0], y: c[1] + (lines.length === 1 ? 4.5 : -2), "text-anchor": "middle", "font-size": 12.5});
+      lines.forEach((ln, i) => t.appendChild(svgEl("tspan", {x: c[0], dy: i ? 14 : 0}, ln)));
+      ng.appendChild(t);
+      if (changed) ng.appendChild(svgEl("text", {x: c[0]+BOX_W/2-5, y: c[1]-BOX_H/2+11, "text-anchor": "end", "font-size": 11, "font-weight": 700, fill: lv >= 3 ? "#fff" : "#111"}, lv > base.levels[id] ? "↑" : "↓"));
+      if (UNIT.nodes[id].advanced && lv === 0) ng.querySelector("rect.box").setAttribute("stroke-dasharray", "3 3");
+    }
+    if (onClick) ng.addEventListener("click", () => onClick(id));
+    svg.appendChild(ng);
+  }
+  if (legend) {
+    const lg = svgEl("g", {class: "legend"});
+    LEVELS.forEach((name, i) => {
+      const x = 14 + i * 195, y = VH + 8;
+      lg.appendChild(svgEl("rect", {x, y, width: 30, height: 15, rx: 3, fill: FILLS[i], stroke: i === 0 ? "#888" : "#111", "stroke-dasharray": i === 0 ? "3 3" : "none"}));
+      lg.appendChild(svgEl("text", {x: x + 38, y: y + 12}, `${i}  ${name}`));
+    });
+    svg.appendChild(lg);
+  }
+  return svg;
+}
+
+// =====================================================================
+// アプリ本体
+// =====================================================================
+const STORE = "kg-map:v1", SETTINGS = "kg-map:settings";
+const $ = s => document.querySelector(s);
+let map, settings, ui = {selected: null, edgeSrc: null, compare: null, tab: "node", pending: null};
+
+function loadState() {
+  try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.nodes) { for (const id of NODE_IDS) if (!s.nodes[id]) s.nodes[id] = {level: 0, why: "", evidence: [], uses: []}; s.inbox = s.inbox || []; return s; } } catch (e) {}
+  return null;
+}
+function saveState() { try { localStorage.setItem(STORE, JSON.stringify(map)); } catch (e) {} }
+function loadSettings() {
+  const d = {liteBase: "../", liteUI: "notebooks", llm: false, apiKey: "", model: "claude-sonnet-4-6"};
+  try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; }
+}
+function saveSettings() { try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} }
+function toast(text) { const t = $("#toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
+function expUrl(e) { const base = settings.liteBase.endsWith("/") ? settings.liteBase : settings.liteBase + "/"; return `${base}${settings.liteUI}/index.html?path=experiments/${e.file}`; }
+
+function drawMain() {
+  const wrap = $("#map"); wrap.innerHTML = "";
+  wrap.appendChild(renderMap(map, {compare: ui.compare, refEdges: $("#chk-ref").checked, selected: ui.selected, edgeSrc: ui.edgeSrc, onClick: onNodeClick}));
+  $("#who").textContent = map.name + " の地図";
+  const sel = $("#sel-compare"); const cur = sel.value; sel.innerHTML = '<option value="">（なし）</option>' + map.snapshots.map((s, i) => `<option value="${i}">[${i}] ${esc(s.label)}</option>`).join("");
+  sel.value = ui.compare == null ? "" : String(ui.compare); if (sel.value !== (ui.compare == null ? "" : String(ui.compare))) sel.value = "";
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+
+function onNodeClick(id) {
+  if (ui.edgeSrc) {
+    if (ui.edgeSrc === id) { ui.edgeSrc = null; $("#mode-hint").textContent = "つなぐのをやめました"; drawMain(); return; }
+    const from = ui.edgeSrc; ui.edgeSrc = null;
+    const why = prompt(`道：${nameOf(from)} → ${nameOf(id)}\nどんなつながり？（ひとことで。あとで AI に聞かれます）`, "");
+    if (why === null) { drawMain(); return; }
+    if (link(map, from, id, why.trim())) toast(`道をつなぎました：${nameOf(from)} → ${nameOf(id)}`);
+    saveState(); ui.selected = id; $("#mode-hint").textContent = "ノードを押すと右に詳しく出ます"; drawMain(); showTab("node"); renderNodePanel(); return;
+  }
+  ui.selected = id; drawMain(); showTab("node"); renderNodePanel();
+}
+function showTab(t) { ui.tab = t; document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t)); document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + t)); }
+
+// ---------- ノードのパネル ----------
+function renderNodePanel() {
+  const el = $("#panel-node"), id = ui.selected;
+  if (!id) { el.innerHTML = `<h2>ノード</h2><p class="muted">地図のノードを押すと、印・わけ・実験がここに出ます。</p>
+    <p>印は 5 段階：${LEVELS.map((n, i) => `<span class="chip">${i} ${n}</span>`).join(" ")}</p>
+    <p class="muted">「たしかめた」と「証明できる」は別のもの。上げるときは「わけ」を自分の言葉で書きます。</p>`; return; }
+  const info = UNIT.nodes[id], n = map.nodes[id];
+  const exps = expsFor(id);
+  const usesOpts = NODE_IDS.filter(k => k !== id).map(k => `<label style="display:inline-flex;gap:4px;align-items:center;margin:2px 8px 2px 0"><input type="checkbox" class="use" value="${k}" ${n.uses.includes(k) ? "checked" : ""}> ${esc(nameOf(k))}</label>`).join("");
+  const myEdges = map.edges.filter(e => e.from === id || e.to === id);
+  el.innerHTML = `
+    <h2>${esc(nameOf(id))} <span class="kind">${esc(info.kind)}${info.advanced ? "・発展" : ""}</span></h2>
+    <div class="muted">いまの印：<b>${n.level} ${LEVELS[n.level]}</b>${n.evidence.length ? "｜根拠：" + n.evidence.map(esc).join(", ") : ""}</div>
+    ${n.why ? `<div class="warn">わけ：${esc(n.why)}</div>` : ""}
+    <h3>たしかめる（実験ノートを開く）</h3>
+    ${exps.map(e => `<div class="exp${e.advanced ? " adv" : ""}"><div class="t">${esc(e.title)} <span class="muted">約 ${e.min} 分</span></div><div class="d">${esc(e.desc)}</div>
+      <div class="row"><a href="${esc(expUrl(e))}" target="_blank" rel="noopener"><button class="small">Notebook で開く</button></a>
+      <button class="small quiet" data-manual="${e.id}">結果を自分で書く</button></div></div>`).join("")}
+    <div class="exp"><div class="t">自由実験</div><div class="d">AI と相談して、自分の実験を書く</div><div class="row"><a href="${esc(expUrl(UNIT.experiments.find(e => e.id === "scratch")))}" target="_blank" rel="noopener"><button class="small">Notebook で開く</button></a></div></div>
+    <h3>印をつける</h3>
+    <div class="levels">${LEVELS.map((name, i) => `<label class="${i === n.level ? "current" : ""}"><input type="radio" name="lv" value="${i}" ${i === n.level ? "checked" : ""}><span class="swatch l${i}"></span><b>${i} ${name}</b><span class="muted">${LEVEL_DESC[i]}</span></label>`).join("")}</div>
+    <div>わけ（自分の言葉で。2 以上に上げるときは必須）</div>
+    <textarea id="why">${esc(n.why)}</textarea>
+    <details><summary>この説明で使った知識（3 以上のとき）</summary><div style="margin:6px 0">${usesOpts}</div></details>
+    <div class="row"><button class="primary" id="btn-mark">印をつける</button><span class="muted" id="mark-note"></span></div>
+    <h3>この地図での道</h3>
+    <ul class="plain">${myEdges.map(e => `<li><span>${esc(nameOf(e.from))} → ${esc(nameOf(e.to))}${e.why ? `<span class="muted">（${esc(e.why)}）</span>` : ""}</span><button class="small quiet" data-unlink="${e.from}|${e.to}">消す</button></li>`).join("") || '<li class="muted">まだありません。上の「道をつなぐ」で作れます</li>'}</ul>
+    <p class="muted">ヒント：${esc(info.hint)}</p>`;
+  el.querySelector("#btn-mark").addEventListener("click", () => {
+    const lv = Number(el.querySelector("input[name=lv]:checked").value), why = el.querySelector("#why").value.trim();
+    const uses = Array.from(el.querySelectorAll(".use:checked")).map(x => x.value);
+    if (lv >= 2 && !why) { el.querySelector("#mark-note").textContent = "「わけ」を書いてから"; el.querySelector("#why").focus(); return; }
+    const old = mark(map, id, lv, why, [], uses);
+    saveState(); drawMain(); renderNodePanel();
+    const weak = uses.filter(u => map.nodes[u].level < lv);
+    aiSay(`${lv > old ? "↑" : lv < old ? "↓" : "＝"} ${nameOf(id)}：${LEVELS[old]} → ${LEVELS[lv]}${why ? "\nわけ：" + why : ""}` + (weak.length ? `\n⚠ この説明は「${weak.map(nameOf).join("」「")}」を使っているけれど、それは『${LEVELS[Math.min(...weak.map(u => map.nodes[u].level))]}』止まり。地図に点線が残ります。` : ""));
+    if (lv >= 2) aiSay(followUpQuestion(id, lv));
+  });
+  el.querySelectorAll("[data-unlink]").forEach(b => b.addEventListener("click", () => { const [a, c] = b.dataset.unlink.split("|"); unlink(map, a, c); saveState(); drawMain(); renderNodePanel(); }));
+  el.querySelectorAll("[data-manual]").forEach(b => b.addEventListener("click", () => { const e = UNIT.experiments.find(x => x.id === b.dataset.manual); const s = prompt(`${e.title}：何を見た？ どこまで確かめた？（一文で）`, ""); if (s && s.trim()) receiveEvidence({type: "evidence", exp: e.id, summary: s.trim(), data: {}, t: now(), manual: true}); }));
+}
+function followUpQuestion(id, lv) {
+  const info = UNIT.nodes[id];
+  if (lv === 2 && info.kind === "性質") return `「${nameOf(id)}」はどこまで確かめた？ その先でも成り立つと言える？ 『いつでも』と言うには何が要る？`;
+  if (lv === 2 && info.kind === "方法") return `なぜその方法でうまくいく？ ヒント：${info.hint}`;
+  if (lv === 2) return `「${nameOf(id)}」を自分の言葉で言うと？ 例を 2 つと、例でないものを 1 つ。`;
+  if (lv === 3) return `「${nameOf(id)}」を、一度も習っていない友だちに説明するとしたら、最初の一文は？ それと、その説明が使っている知識は「使った知識」に入れた？`;
+  return `「${nameOf(id)}」の証明は、何を前提にしている？ その前提の印はいくつ？`;
+}
+
+// ---------- AI のパネル（そばにいる AI） ----------
+const chat = [];
+function aiSay(text, html) { chat.push({who: "ai", text, html}); renderChat(); }
+function meSay(text) { chat.push({who: "me", text}); renderChat(); }
+function renderChat() {
+  const log = $("#chatlog"); log.innerHTML = chat.map((m, i) => `<div class="msg ${m.who}"><div><div class="who">${m.who === "ai" ? "AI" : map.name}</div><div class="bubble">${m.html ? m.html : esc(m.text)}</div></div></div>`).join("");
+  log.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => onCardAction(b)));
+  log.scrollTop = log.scrollHeight;
+}
+// 届いた結果 → カード（どのノードの根拠にする？ 印は？ わけは？）
+function receiveEvidence(msg) {
+  map.inbox.push(msg); saveState();
+  const e = UNIT.experiments.find(x => x.id === msg.exp) || {title: msg.exp, nodes: []};
+  const cands = e.nodes.length ? e.nodes : NODE_IDS;
+  const html = `<div class="card" data-exp="${esc(msg.exp)}"><div class="t">届いた結果：${esc(e.title)}</div><div>${esc(msg.summary)}</div>
+    <div class="muted" style="margin-top:6px">この結果を、どのノードの根拠にする？（複数でも）</div>
+    <div class="chips" style="margin:4px 0">${cands.map(n => `<label class="chip"><input type="checkbox" class="ev-node" value="${n}" ${e.nodes[0] === n ? "checked" : ""}> ${esc(nameOf(n))}</label>`).join("")}</div>
+    <div class="muted">印はどうする？</div>
+    <div class="row">${[1, 2, 3, 4].map(l => `<label><input type="radio" name="ev-lv-${esc(msg.exp)}-${map.inbox.length}" value="${l}" ${l === 2 ? "checked" : ""}> ${l} ${LEVELS[l]}</label>`).join(" ")}</div>
+    <div class="muted">わけ（結果の文をそのまま写さず、自分の言葉で）</div>
+    <textarea class="ev-why"></textarea>
+    <div class="row"><button class="primary" data-act="apply-evidence">この印で地図に書く</button><button class="quiet" data-act="dismiss">今は変えない</button></div></div>`;
+  aiSay("", html);
+  aiSay(msg.exp === "scratch" ? "自由実験の結果が届きました。何を試して、何が見えた？" : `実験の結果が届きました。まず「何を見た？ どこまで確かめた？」を一文で。それが「わけ」になります。\n『たしかめた』は見た範囲のこと、『説明できる』は理由が言えること。どちらにする？`);
+  showTab("ai"); toast("実験の結果が届きました");
+}
+function onCardAction(b) {
+  const card = b.closest(".card"), act = b.dataset.act;
+  if (act === "dismiss") { card.innerHTML = '<div class="muted">今は変えませんでした（記録には残っています）</div>'; return; }
+  if (act === "apply-evidence") {
+    const nodes = Array.from(card.querySelectorAll(".ev-node:checked")).map(x => x.value);
+    const lv = Number((card.querySelector("input[type=radio]:checked") || {value: 2}).value), why = card.querySelector(".ev-why").value.trim();
+    if (!nodes.length) { toast("ノードを選んでください"); return; }
+    if (lv >= 2 && !why) { toast("「わけ」を自分の言葉で"); card.querySelector(".ev-why").focus(); return; }
+    const exp = card.dataset.exp, lines = [];
+    for (const n of nodes) { const cur = map.nodes[n].level; const to = Math.max(cur, lv); const old = mark(map, n, to, why, [exp], null); lines.push(`${to > old ? "↑" : "＝"} ${nameOf(n)}：${LEVELS[old]} → ${LEVELS[to]}｜根拠：${exp}`); }
+    saveState(); drawMain(); if (ui.selected) renderNodePanel();
+    card.innerHTML = `<div>${lines.map(esc).join("<br>")}</div>`;
+    aiSay(followUpQuestion(nodes[0], Math.max(map.nodes[nodes[0]].level, 1)));
+    return;
+  }
+  if (act === "apply-mark") {
+    const n = card.dataset.node, lv = Number(card.dataset.level), why = card.querySelector(".p-why").value.trim();
+    if (lv >= 2 && !why) { toast("「わけ」を自分の言葉で"); return; }
+    const old = mark(map, n, lv, why, [], null); saveState(); drawMain(); if (ui.selected) renderNodePanel();
+    card.innerHTML = `<div>${esc(`${lv > old ? "↑" : lv < old ? "↓" : "＝"} ${nameOf(n)}：${LEVELS[old]} → ${LEVELS[lv]}`)}</div>`; return;
+  }
+  if (act === "apply-link") {
+    const [a, c] = card.dataset.edge.split("|"), why = card.querySelector(".p-why").value.trim();
+    link(map, a, c, why); saveState(); drawMain(); if (ui.selected) renderNodePanel();
+    card.innerHTML = `<div>${esc(`＋ 道：${nameOf(a)} → ${nameOf(c)}${why ? "（" + why + "）" : ""}`)}</div>`; return;
+  }
+  if (act === "open-exp") { const e = UNIT.experiments.find(x => x.id === card.dataset.exp); if (e) window.open(expUrl(e), "_blank"); return; }
+}
+const proposalCard = p => {
+  if (p.type === "mark" && map.nodes[p.node]) return `<div class="card" data-node="${p.node}" data-level="${Number(p.level)}"><div class="t">提案：「${esc(nameOf(p.node))}」を ${Number(p.level)} ${LEVELS[Number(p.level)] || ""} に</div><div class="muted">わけ（直してよい）</div><textarea class="p-why">${esc(p.why || "")}</textarea><div class="row"><button class="primary" data-act="apply-mark">この印で地図に書く</button><button class="quiet" data-act="dismiss">やめる</button></div></div>`;
+  if (p.type === "link" && map.nodes[p.from] && map.nodes[p.to]) return `<div class="card" data-edge="${p.from}|${p.to}"><div class="t">提案：道 ${esc(nameOf(p.from))} → ${esc(nameOf(p.to))}</div><div class="muted">つながり（直してよい）</div><textarea class="p-why">${esc(p.why || "")}</textarea><div class="row"><button class="primary" data-act="apply-link">つなぐ</button><button class="quiet" data-act="dismiss">やめる</button></div></div>`;
+  if (p.type === "experiment") { const e = UNIT.experiments.find(x => x.id === p.id); if (e) return `<div class="card" data-exp="${e.id}"><div class="t">提案：${esc(e.title)}<span class="muted">（約 ${e.min} 分）</span></div><div>${esc(e.desc)}</div><div class="row"><button class="primary" data-act="open-exp">Notebook で開く</button></div></div>`; }
+  return "";
+};
+const ALIASES = {divisor_multiple: ["約数と倍数", "倍数"], composite: ["合成数"], prime: ["素数"], factorization: ["素因数分解"], one_not_prime: ["1は素数", "1 は素数"], sieve: ["篩", "ふるい", "エラトステネス"], exponent: ["累乗", "指数"], trial_division: ["手順", "割っていく"], uniqueness: ["一意性", "ただ一通り"], square: ["平方数"], gcd_lcm: ["最大公約数", "最小公倍数", "公約数", "公倍数"], divisor_count: ["約数の個数"], infinite_primes: ["無限"], prime_race: ["偏り", "レース"]};
+const findNodesIn = text => NODE_IDS.map(id => { const keys = [nameOf(id), ...(ALIASES[id] || [])]; const best = Math.max(0, ...keys.filter(k => text.includes(k)).map(k => k.length)); return [id, best]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+const levelIn = text => { for (let i = 4; i >= 1; i--) if (text.includes(LEVELS[i])) return i; return null; };
+
+// 規則で答える AI
+function ruleAI(text) {
+  const nodes = findNodesIn(text), lv = levelIn(text);
+  const wantExp = /実験|たしかめ|確かめ|試/.test(text), wantEdge = /道|つな|矢印/.test(text), wantQ = /問い|質問|聞いて/.test(text), wantNext = /次|何を|どれ/.test(text);
+  if (text === "印の相談") {
+    const id = ui.selected;
+    if (!id) return "地図でノードを 1 つ選んでから「印の相談」を押してください。";
+    const n = map.nodes[id];
+    return `「${nameOf(id)}」はいま『${LEVELS[n.level]}』。${n.evidence.length ? "根拠は " + n.evidence.join(", ") + "。" : "根拠はまだありません。"}\n` + (n.level <= 1 ? `まず実験で見てみる？ ${expsFor(id).map(e => e.title).join("／") || "自由実験で試せます"}。` : n.level === 2 ? `『説明できる』に上げるなら、なぜそうなるかを一文で言えるかどうか。言えそうなら下の「わけ」に書いて、印をつける。言えないなら『たしかめた』のままでいい。` : n.level === 3 ? `『証明できる』は、いつでも成り立つ理由を示せること。この説明が使っている知識（借りているもの）は全部『説明できる』以上？` : `『証明できる』まで来ています。その証明が使う前提のノードの印も見てみましょう。`);
+  }
+  if (nodes.length && lv) {
+    const id = nodes[0], cur = map.nodes[id].level;
+    if (lv <= cur) return `「${nameOf(id)}」はいま『${LEVELS[cur]}』なので、${LEVELS[lv]} に下げる、ということ？ 下げてもかまいません（正直な地図が土台）。ノードのパネルで印を選んで「印をつける」を押してください。`;
+    const html = `${esc(`「${nameOf(id)}」を『${LEVELS[lv]}』に、ですね。上げる前にひとつ。${lv === 2 ? "何を見た？ どこまで確かめた？" : lv === 3 ? "なぜそうなるか、一文で言うと？（その説明が使っている知識も教えて）" : "いつでも成り立つ理由を、一文で。何を前提にしている？"}\n下に書けたら「この印で地図に書く」。書けないなら、まだ上げないでおくのが正直です。`)}` + proposalCard({type: "mark", node: id, level: lv, why: ""});
+    return {html};
+  }
+  if (nodes.length && wantExp) {
+    const id = nodes[0], exps = suggestExperiments(map, id);
+    if (!exps.length) return `「${nameOf(id)}」に用意した実験はありません。自由実験で試してみますか？ ヒント：${UNIT.nodes[id].hint}`;
+    return {html: `${esc(`「${nameOf(id)}」なら、こんな実験があります（短い順）。`)}` + exps.slice(0, 3).map(e => proposalCard({type: "experiment", id: e.id})).join("")};
+  }
+  if (wantNext || (wantExp && !nodes.length) || text === "次に何をたしかめる？") {
+    const weak = NODE_IDS.filter(id => map.nodes[id].level <= 1 && !UNIT.nodes[id].advanced);
+    const exps = suggestExperiments(map).slice(0, 3);
+    const head = weak.length ? `『聞いた』のままのノードが ${weak.length} 個：${weak.map(nameOf).join("、")}。\n短い実験から見てみる？` : `どのノードも一度は確かめています。次は『たしかめた』止まりのノードを『説明できる』に上げられるか考えてみよう。`;
+    return {html: esc(head) + exps.map(e => proposalCard({type: "experiment", id: e.id})).join("")};
+  }
+  if (wantEdge && nodes.length >= 2) return {html: esc(`「${nameOf(nodes[0])}」と「${nameOf(nodes[1])}」をつなぐ、ですね。どんなつながり？ ひとことで書いてから「つなぐ」。`) + proposalCard({type: "link", from: nodes[0], to: nodes[1], why: ""})};
+  if (wantEdge) return "道をつなぐには、上の「道をつなぐ」を押して、地図のノードを 2 つ順に押します。矢印は正解ではなく、きみの並べ方。あとで「どんなつながり？」と聞きます。";
+  if (nodes.length) { const id = nodes[0], n = map.nodes[id]; return `「${nameOf(id)}」はいま『${LEVELS[n.level]}』${n.why ? "、わけ：" + n.why : ""}。\n` + followUpQuestion(id, Math.max(n.level, 1)) + (n.level <= 1 ? `\n実験で見るなら：${expsFor(id).map(e => e.title).join("／") || "自由実験"}` : ""); }
+  if (wantQ || text === "この地図に問いをください") { const qs = askMe(map, 3); return qs.length ? qs.map((q, i) => `Q${i+1}. ${q}`).join("\n") : "いまの地図から出せる問いはありません。まず実験をひとつ。"; }
+  return "地図を作るのはきみで、私は問うだけです。できること：\n・「次に何をたしかめる？」→ 実験を勧める\n・「〇〇を説明できるにしたい」→ わけを聞いてから印の提案\n・「〇〇と△△をつなぎたい」→ 道の提案\n・「問いをください」→ いまの地図への問い";
+}
+async function llmAI(text) {
+  const sys = `あなたは中学生のそばにいる数学の先生です。生徒は「自分の地図」（知識グラフ）を持ち、ノードに印（0 まだ／1 聞いた／2 たしかめた／3 説明できる／4 証明できる）と「わけ」をつけています。
+ルール：地図を作り直さない。答えを言わない。印を勝手に決めない。根拠を尋ねる（どこまで確かめた？ なぜそう言える？ 何を前提にしている？）。問いは 1 回に 2 つまで。短く、やさしい日本語で。
+生徒が自分で理由を言えたときだけ、印や道を「提案」してよい（提案は生徒がボタンで採用する）。実験を勧めるときは experiment 提案を使う。
+必ず次の JSON だけを返す：{"reply": "生徒への返事", "proposals": [{"type":"mark","node":"<id>","level":<0-4>,"why":"生徒の言葉の要約"} | {"type":"link","from":"<id>","to":"<id>","why":"..."} | {"type":"experiment","id":"<exp id>"}]}（proposals は空でもよい）
+ノード id と名前：${NODE_IDS.map(id => id + "=" + nameOf(id)).join(", ")}
+実験 id：${UNIT.experiments.map(e => e.id + "=" + e.title).join(", ")}`;
+  const mapJson = JSON.stringify({name: map.name, nodes: Object.fromEntries(NODE_IDS.map(id => [id, {印: LEVELS[map.nodes[id].level], わけ: map.nodes[id].why, 根拠: map.nodes[id].evidence, 使った知識: map.nodes[id].uses}])), 道: map.edges.map(e => [e.from, e.to, e.why]), 届いた結果: (map.inbox || []).slice(-5).map(x => [x.exp, x.summary])});
+  const history = chat.filter(m => m.text).slice(-8).map(m => ({role: m.who === "ai" ? "assistant" : "user", content: m.text}));
+  const messages = [{role: "user", content: "生徒の地図（JSON）：\n" + mapJson}, {role: "assistant", content: "{\"reply\": \"地図を見ました。どうしましたか？\", \"proposals\": []}"}, ...history, {role: "user", content: text}];
+  const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {"content-type": "application/json", "x-api-key": settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"}, body: JSON.stringify({model: settings.model, max_tokens: 800, system: sys, messages})});
+  if (!r.ok) throw new Error(`API ${r.status}`);
+  const data = await r.json(); const raw = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
+  let obj; try { obj = JSON.parse(raw.replace(/^```(json)?|```$/g, "").trim()); } catch (e) { obj = {reply: raw, proposals: []}; }
+  return {text: obj.reply || "", html: esc(obj.reply || "") + (obj.proposals || []).map(proposalCard).join("")};
+}
+async function onChat(text) {
+  meSay(text);
+  if (settings.llm && settings.apiKey) {
+    aiSay("（考え中…）"); const idx = chat.length - 1;
+    try { const r = await llmAI(text); chat[idx] = {who: "ai", text: r.text, html: r.html}; }
+    catch (e) { chat[idx] = {who: "ai", text: "", html: esc("生成 AI に接続できませんでした（" + e.message + "）。規則モードで答えます。\n") + (() => { const r = ruleAI(text); return typeof r === "string" ? esc(r) : r.html; })()}; }
+    renderChat(); return;
+  }
+  const r = ruleAI(text);
+  if (typeof r === "string") aiSay(r); else aiSay("", r.html);
+}
+
+// ---------- 記録のパネル ----------
+function renderHist() {
+  const el = $("#panel-hist");
+  el.innerHTML = `<h2>記録</h2><p class="muted">地図を記録しておくと、あとで「比べる」で変化が二重枠と ↑ で見えます。ノードの数は数えません。深さと来歴を見ます。</p>
+    <div class="row"><button class="primary" id="h-snap">いまの地図を記録する</button></div>
+    ${map.snapshots.map((s, i) => `<div class="snap"><div class="t">[${i}] ${esc(s.label)} <span class="muted">${esc(s.t)}</span></div><div class="row"><button class="small" data-cmp="${i}">この記録と比べる</button>${i > 0 ? `<button class="small quiet" data-diff="${i}">[${i-1}] からの変化</button>` : ""}</div><div class="mini" data-mini="${i}"></div><pre class="diff" id="diff-${i}" style="display:none"></pre></div>`).join("")}
+    <h3>届いた結果（${(map.inbox || []).length}）</h3>
+    <ul class="plain">${(map.inbox || []).slice().reverse().map(x => `<li><span><b>${esc(x.exp)}</b> ${esc(x.summary)} <span class="muted">${esc(x.t)}</span></span></li>`).join("") || '<li class="muted">まだありません。実験ノートの最後のセルを実行すると届きます</li>'}</ul>
+    <h3>保存・読み込み</h3>
+    <div class="row"><button id="h-export">JSON に書き出す</button><label><button class="quiet" onclick="this.nextElementSibling.click()">JSON を読み込む</button><input type="file" id="h-import" accept="application/json" style="display:none"></label><button class="quiet" id="h-reset">最初からやり直す</button></div>
+    <p class="muted">この JSON はノート版の my_map.json と同じ形です。ブラウザにも自動で保存されています。</p>`;
+  el.querySelector("#h-snap").addEventListener("click", () => { const label = prompt("この記録の名前（例：実験3のあと）", `記録 ${map.snapshots.length}`); if (label === null) return; snapshot(map, label.trim() || `記録 ${map.snapshots.length}`); saveState(); drawMain(); renderHist(); toast("記録しました"); });
+  el.querySelectorAll("[data-cmp]").forEach(b => b.addEventListener("click", () => { ui.compare = Number(b.dataset.cmp); drawMain(); toast(`「${map.snapshots[ui.compare].label}」と比べています`); }));
+  el.querySelectorAll("[data-diff]").forEach(b => b.addEventListener("click", () => { const i = Number(b.dataset.diff); const pre = el.querySelector(`#diff-${i}`); pre.textContent = diffText(map, i - 1, i); pre.style.display = pre.style.display === "none" ? "block" : "none"; }));
+  el.querySelectorAll("[data-mini]").forEach(d => { const i = Number(d.dataset.mini), s = map.snapshots[i]; const tmp = JSON.parse(JSON.stringify(map)); for (const id of NODE_IDS) tmp.nodes[id].level = s.levels[id]; tmp.edges = map.edges.filter(e => s.edges.some(x => x[0] === e.from && x[1] === e.to)); d.appendChild(renderMap(tmp, {labels: false, legend: false})); });
+  el.querySelector("#h-export").addEventListener("click", () => { const blob = new Blob([JSON.stringify(map, null, 1)], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "my_map.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
+  el.querySelector("#h-import").addEventListener("change", ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(t => { const s = JSON.parse(t); if (!s.nodes) throw 0; for (const id of NODE_IDS) if (!s.nodes[id]) s.nodes[id] = {level: 0, why: "", evidence: [], uses: []}; s.inbox = s.inbox || []; map = s; ui.compare = null; saveState(); drawMain(); renderHist(); renderNodePanel(); toast("読み込みました"); }).catch(() => toast("読み込めませんでした")); });
+  el.querySelector("#h-reset").addEventListener("click", () => { if (!confirm("地図を最初からやり直します（いまの地図は消えます）。JSON に書き出してからにしますか？ OK で消します。")) return; map = newMap(map.name); heard(map); snapshot(map, "授業のあと"); ui.compare = null; ui.selected = null; saveState(); drawMain(); renderHist(); renderNodePanel(); });
+}
+
+// ---------- 設定のパネル ----------
+function renderSettings() {
+  const el = $("#panel-set");
+  el.innerHTML = `<h2>設定</h2>
+    <div>名前</div><input type="text" id="s-name" value="${esc(map.name)}">
+    <h3>実験ノート（JupyterLite）</h3>
+    <div class="muted">この地図アプリと同じサイトの JupyterLite を開きます。手元で動かすときは場所を変えられます。</div>
+    <div>JupyterLite の場所（相対または URL）</div><input type="text" id="s-base" value="${esc(settings.liteBase)}">
+    <div class="row"><label><input type="radio" name="s-ui" value="notebooks" ${settings.liteUI === "notebooks" ? "checked" : ""}> Notebook 画面（シンプル）</label><label><input type="radio" name="s-ui" value="lab" ${settings.liteUI === "lab" ? "checked" : ""}> Lab 画面</label></div>
+    <h3>そばにいる AI</h3>
+    <div class="muted">既定は規則で問う AI（通信なし）。生成 AI を使う場合は、自分の API キーをこのブラウザにだけ保存します（サーバには送りません）。AI は提案するだけで、地図を書き換えるのはきみです。</div>
+    <div class="row"><label><input type="checkbox" id="s-llm" ${settings.llm ? "checked" : ""}> 生成 AI（Anthropic API）を使う</label></div>
+    <div>API キー</div><input type="password" id="s-key" value="${esc(settings.apiKey)}" placeholder="sk-ant-…">
+    <div>モデル</div><input type="text" id="s-model" value="${esc(settings.model)}">
+    <div class="row"><button class="primary" id="s-save">保存</button></div>
+    <h3>この地図について</h3>
+    <p class="muted">${esc(UNIT.unit)}：ノード ${NODE_IDS.length} 個、教科書の道 ${UNIT.edges.length} 本、実験 ${UNIT.experiments.length} 本。<br>ノード数や接地率は数えません（数を目的にしないため）。</p>`;
+  el.querySelector("#s-save").addEventListener("click", () => {
+    map.name = el.querySelector("#s-name").value.trim() || map.name; settings.liteBase = el.querySelector("#s-base").value.trim() || "../"; settings.liteUI = el.querySelector("input[name=s-ui]:checked").value;
+    settings.llm = el.querySelector("#s-llm").checked; settings.apiKey = el.querySelector("#s-key").value.trim(); settings.model = el.querySelector("#s-model").value.trim() || "claude-sonnet-4-6";
+    saveSettings(); saveState(); drawMain(); if (ui.selected) renderNodePanel(); toast("保存しました");
+  });
+}
+
+// ---------- 起動 ----------
+function init() {
+  settings = loadSettings();
+  map = loadState();
+  const fresh = !map;
+  if (fresh) { const name = prompt("きみの名前（地図につけます）", "わたし") || "わたし"; map = newMap(name.trim() || "わたし"); heard(map); snapshot(map, "授業のあと"); saveState(); }
+  drawMain(); renderNodePanel(); renderHist(); renderSettings();
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { showTab(b.dataset.tab); if (b.dataset.tab === "hist") renderHist(); if (b.dataset.tab === "set") renderSettings(); }));
+  $("#chk-ref").addEventListener("change", drawMain);
+  $("#sel-compare").addEventListener("change", ev => { ui.compare = ev.target.value === "" ? null : Number(ev.target.value); drawMain(); });
+  $("#btn-edge").addEventListener("click", () => { if (!ui.selected) { toast("先にノードを 1 つ押してから"); return; } ui.edgeSrc = ui.selected; $("#mode-hint").textContent = `${nameOf(ui.edgeSrc)} → つなぎ先のノードを押す（もう一度押すとやめる）`; drawMain(); });
+  $("#btn-snap").addEventListener("click", () => { const label = prompt("この記録の名前（例：実験3のあと）", `記録 ${map.snapshots.length}`); if (label === null) return; snapshot(map, label.trim() || `記録 ${map.snapshots.length}`); saveState(); drawMain(); renderHist(); toast("記録しました"); });
+  $("#btn-help").addEventListener("click", () => { showTab("ai"); aiSay("使い方：\n1. 地図のノードを押す → 右に印・わけ・実験が出ます\n2. 「Notebook で開く」で実験ノートが別タブに開きます。上から実行すると、最後のセルで結果がここに届きます\n3. 届いた結果を見て、自分の言葉で「わけ」を書き、印をつけます（『たしかめた』と『証明できる』は別）\n4. 「道をつなぐ」で自分の矢印を作れます。教科書の矢印は薄い灰色の一案、採点しません\n5. 「記録する」で地図を残し、「比べる」で成長を見ます\n困ったら、ここで話しかけてください。私は地図を作りません。問うだけです。"); });
+  $("#chatform").addEventListener("submit", ev => { ev.preventDefault(); const t = $("#chatin").value.trim(); if (!t) return; $("#chatin").value = ""; onChat(t); });
+  document.querySelectorAll(".quick button").forEach(b => b.addEventListener("click", () => onChat(b.dataset.q)));
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && ui.edgeSrc) { ui.edgeSrc = null; $("#mode-hint").textContent = "ノードを押すと右に詳しく出ます"; drawMain(); } });
+  if (typeof BroadcastChannel !== "undefined") {
+    const ch = new BroadcastChannel("kg-map");
+    ch.onmessage = ev => { try { const msg = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; if (msg && msg.type === "evidence") receiveEvidence(msg); } catch (e) {} };
+  }
+  aiSay(fresh ? `${map.name}さん、こんにちは。授業で聞いたところに「聞いた」の印をつけた地図から始めます。\nまず、地図のノードを 1 つ押してみてください。実験で確かめると、印が濃くなっていきます。` : `おかえりなさい。前回の地図を開きました。${map.snapshots.length ? "記録は " + map.snapshots.length + " 回。" : ""}続きから。何をたしかめますか？`);
+}
+if (typeof window !== "undefined" && typeof document !== "undefined") { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init(); }
+</script>
+</body>
+</html>
