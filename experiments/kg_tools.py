@@ -5,9 +5,13 @@
 import json, os, sys, copy, math, random
 from datetime import datetime
 
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
+try:
+    import numpy as np
+    import matplotlib
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError as e:   # JupyterLite：ノートの最初のセルの import numpy, matplotlib, sympy が部品を読み込む
+    raise ModuleNotFoundError(f"{e}。JupyterLite では、ノートの最初のセルにある "
+                              "`import numpy, matplotlib, sympy` の行を残して、そのセルを先に実行してください") from e
 import logging
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)   # 太字のない同梱フォントで出る注意書きを出さない
 from matplotlib.patches import FancyBboxPatch
