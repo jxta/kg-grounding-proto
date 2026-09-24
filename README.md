@@ -12,6 +12,7 @@
 
 | 方法 | リンク | 備考 |
 |:--|:--|:--|
+| **地図アプリ ＋ 実験ノート**（ブラウザだけ） | [自分の地図を開く](https://jxta.github.io/kg-grounding-proto/app/) | 地図を見て・編集し、ノードごとに実験ノートを別タブで開く。結果は地図に届く。そばにいる AI と相談しながら進める（下の「もう一つの形」） |
 | **JupyterLite**（ブラウザだけ。インストール不要） | [Lab 画面](https://jxta.github.io/kg-grounding-proto/lab/index.html?path=kg_prime_factorization.ipynb) ／ [Notebook 画面](https://jxta.github.io/kg-grounding-proto/notebooks/index.html?path=kg_prime_factorization.ipynb) | 初回は Pyodide の読み込みに 20〜30 秒。全セル実行は 15 秒ほど。保存した地図はブラウザの中に残る |
 | **Binder**（本物の Python カーネル） | [mybinder.org で開く](https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?labpath=kg_prime_factorization.ipynb) | 起動に 1〜数分。日本語フォントは `apt.txt` で入る |
 | **手元の Jupyter** | `git clone` → `pip install -r requirements.txt` → ノートを開いて上から実行 | SageMath カーネルでもそのまま動く。日本語フォントは fonts/ → パソコン → ネット の順に探す（`python tools/make_font_subset.py` で fonts/ に置いておけばオフラインでも出る） |
@@ -61,6 +62,32 @@
 |:--:|:--:|
 | ![](https://jxta.github.io/kg-grounding-proto/figures/h_trees.png) | ![](https://jxta.github.io/kg-grounding-proto/figures/prime_race.png) |
 
+## もう一つの形：地図アプリ ＋ 実験ノート（[開く](https://jxta.github.io/kg-grounding-proto/app/)）
+
+ノート 1 冊にすべてを入れる上の形とは別に、**地図を表示・編集する Web アプリ** を前に置き、そこから **「たしかめる」ための実験ノート** を必要なだけ別々に開く形も用意した。
+
+```
+ 地図アプリ（app/）                      実験ノート（experiments/、JupyterLite）
+ ┌────────────────────────┐   開く   ┌──────────────────────┐
+ │ 単元の地図（教科書の道は薄く） │ ───────→ │ 01_sieve … 09_gcd_lcm │
+ │ 自分の印・わけ・道       │          │ 00_scratch（自由実験）  │
+ │ そばにいる AI（問うだけ）  │ ←─────── │ 最後のセル report() が  │
+ │ 記録・比べる・JSON       │  結果が届く │ 結果を地図に送る       │
+ └────────────────────────┘          └──────────────────────┘
+```
+
+- **地図はアプリで、実験はノートで**。ノードを押すと、そのノードを確かめる実験が並ぶ（複数あってよい。1 つのノードに 2〜3 本）。「Notebook で開く」で JupyterLite の実験ノートが別タブに開き、上から実行すると最後のセルの `report()` が結果を地図アプリに届ける（同じブラウザの中で BroadcastChannel を使う。届かなければ自分で書く）
+- **AI は提案するだけ、書き換えるのは生徒**。届いた結果を見て、AI が「何を見た？ どこまで確かめた？」と聞く。生徒が「わけ」を自分の言葉で書いてから印をつける。既定の AI は規則で動く（通信なし）。設定で自分の API キーを入れると生成 AI（Anthropic API）に切り替わり、同じルール（地図を作り直さない・答えを言わない・根拠を尋ねる）のもとで、印・道・実験を **提案カード** として返す。採用ボタンを押すまで地図は変わらない
+- **実験は各自の好みで**。「次に何をたしかめる？」と聞くと、弱いノードに向く短い実験から勧める。用意した実験に無いことは「自由実験」ノートで試し、結果を `report("scratch", "…")` で送る
+- **地図の編集も AI と一緒に**。「一意性を説明できるにしたい」→ AI が理由を聞き、印の提案カードを出す。「素数と篩をつなぎたい」→ 道の提案カード
+- 地図は JSON に書き出せ、ノート版の `my_map.json` と同じ形。ブラウザにも自動保存される
+
+| ファイル | 用途 |
+|:--|:--|
+| `app/index.html` | 地図アプリ本体（1 ファイル、依存なし）。別の単元にするには先頭の `UNIT` を差し替える |
+| `experiments/*.py` | 実験ノートの元（jupytext の percent 形式）。CI が `.ipynb` に変換し、動くことを確かめてから JupyterLite に入れる |
+| `experiments/kg_tools.py` | 実験ノート共通の道具（篩の表・因数の木・約数の表・素数レース・H の世界）と `report()` |
+
 ## 設計の原則との対応
 
 | 原則 | 実装 |
@@ -83,9 +110,9 @@
 | `requirements.txt` / `apt.txt` | 依存（Binder もこれを読む） |
 | `tools/make_font_subset.py` | Noto Sans CJK JP のサブセット（約 1.8 MB）を `fonts/` に作る。JupyterLite・CI・CJK フォントのない環境用。その字体にない記号（≤ ⁴ ⚠ など）は DejaVu Sans で補う |
 | `fonts/NotoSansCJKjp-Regular-subset.otf` | 同梱の日本語フォント（上のツールで作ったもの、約 1.8 MB）。`fonts/LICENSE-OFL.txt` はそのライセンス（SIL OFL 1.1） |
-| `.github/workflows/deploy.yml` | push のたびにノートを実行し、図・HTML・JupyterLite を GitHub Pages に置く |
+| `.github/workflows/deploy.yml` | push のたびにノートを実行し、実験ノートを生成・検証し、図・HTML・地図アプリ・JupyterLite を GitHub Pages に置く |
 
-GitHub Pages に置かれるもの：[JupyterLite](https://jxta.github.io/kg-grounding-proto/)、
+GitHub Pages に置かれるもの：[地図アプリ](https://jxta.github.io/kg-grounding-proto/app/)、[JupyterLite](https://jxta.github.io/kg-grounding-proto/)（実験ノートは `experiments/`）、
 [図 11 枚](https://jxta.github.io/kg-grounding-proto/figures/map_2_final.png)（`figures/*.png`、モノクロ 200 dpi）、
 [実行結果つき HTML](https://jxta.github.io/kg-grounding-proto/kg_prime_factorization.html)、
 [実行結果つきノート](https://nbviewer.org/url/jxta.github.io/kg-grounding-proto/kg_prime_factorization_executed.ipynb)。
