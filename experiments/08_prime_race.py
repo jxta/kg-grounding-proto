@@ -14,6 +14,7 @@
 
 # %%
 import sys; sys.path.insert(0, ".")
+import numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）
 from kg_tools import *
 
 D = prime_race(30000)
