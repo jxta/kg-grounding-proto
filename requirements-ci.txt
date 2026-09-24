@@ -1,7 +1,8 @@
-# GitHub Actions 用：ノートの実行・HTML 化と JupyterLite のビルド
+# GitHub Actions 用：ノートの実行・HTML 化、実験ノートの生成、JupyterLite のビルド
 -r requirements.txt
 nbconvert
 ipykernel
+jupytext
 jupyterlite-core
 jupyterlite-pyodide-kernel
 jupyter_server
