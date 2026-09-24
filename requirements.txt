@@ -1,0 +1,6 @@
+# ノートを動かすのに必要なもの（Binder もこれを読む）
+numpy
+matplotlib
+networkx
+sympy
+fonttools

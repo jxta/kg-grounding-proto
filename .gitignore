@@ -1,0 +1,13 @@
+# 生成物（GitHub Actions が作って GitHub Pages に置く）
+dist/
+_lite/
+_output/
+.jupyterlite.doit.db
+.cache/
+figures/
+*_executed.ipynb
+kg_prime_factorization.html
+unit_prime_factorization.json
+my_map.json
+.ipynb_checkpoints/
+__pycache__/
