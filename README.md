@@ -1,2 +1,103 @@
-# kg-grounding-proto
-素因数分解の「地図」— 実験で「わかった」を接地させる Jupyter Notebook（知識グラフ×実験数学の教育プロトタイプ、JupyterLite / Binder 対応）
+# 素因数分解の「地図」— 実験で「わかった」を接地させる Jupyter Notebook
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?labpath=kg_prime_factorization.ipynb)
+[![JupyterLite](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://jxta.github.io/kg-grounding-proto/lab/index.html?path=kg_prime_factorization.ipynb)
+[![build-and-deploy](https://github.com/jxta/kg-grounding-proto/actions/workflows/deploy.yml/badge.svg)](https://github.com/jxta/kg-grounding-proto/actions/workflows/deploy.yml)
+
+教科書の知識グラフ（単元の **地図**）を土台に、生徒が Jupyter Notebook の **実験** でノードを一つずつ確かめ、
+「どこまで納得したか」の **印**（接地レベル）を根拠つきで **自分の地図** に記録していく――その教育実践のプロトタイプです。
+題材は中学1年「素因数分解」（14 ノード）。ノート 1 冊で完結します。
+
+## 動かし方（3 通り）
+
+| 方法 | リンク | 備考 |
+|:--|:--|:--|
+| **JupyterLite**（ブラウザだけ。インストール不要） | [Lab 画面](https://jxta.github.io/kg-grounding-proto/lab/index.html?path=kg_prime_factorization.ipynb) ／ [Notebook 画面](https://jxta.github.io/kg-grounding-proto/notebooks/index.html?path=kg_prime_factorization.ipynb) | 初回は Pyodide の読み込みに 20〜30 秒。全セル実行は 15 秒ほど。保存した地図はブラウザの中に残る |
+| **Binder**（本物の Python カーネル） | [mybinder.org で開く](https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?labpath=kg_prime_factorization.ipynb) | 起動に 1〜数分。日本語フォントは `apt.txt` で入る |
+| **手元の Jupyter** | `git clone` → `pip install -r requirements.txt` → ノートを開いて上から実行 | SageMath カーネルでもそのまま動く。日本語フォントは fonts/ → パソコン → ネット の順に探す（`python tools/make_font_subset.py` で fonts/ に置いておけばオフラインでも出る） |
+
+動かさずに読むだけなら [実行結果つきの HTML](https://jxta.github.io/kg-grounding-proto/kg_prime_factorization.html)
+（道具のコードは非表示。スマホでも読める）。
+
+## 印（接地レベル）と地図の見た目
+
+| 印 | 意味 | 見た目 |
+|:--|:--|:--|
+| 0 まだ | まだ触れていない | 点線の白 |
+| 1 聞いた | 先生や教科書から聞いた | 白 |
+| 2 たしかめた | 実験して、自分の目で見た | 薄い灰色 |
+| 3 説明できる | なぜそうなるかを、自分の言葉で言える | 濃い灰色 |
+| 4 証明できる | いつでも成り立つ理由を示せる | 黒 |
+
+薄い灰色の矢印＝教科書の道（並べ方の一案）。黒の矢印＝生徒が自分でつないだ道。
+黒の **点線** ＝「借りている」印（弱い材料を使った説明）。二重枠と ↑ ＝前回の記録からの変化。
+
+| 教科書の地図 | すべての実験のあと（実験1〜3 のあとからの変化） |
+|:--:|:--:|
+| ![](https://jxta.github.io/kg-grounding-proto/figures/ref_map.png) | ![](https://jxta.github.io/kg-grounding-proto/figures/map_2_final_diff.png) |
+
+## ノートの流れ
+
+1. **単元の地図を見る** — 14 ノード。定義／約束／方法／書き方／性質を区別。発展 2 つは点線
+2. **自分の地図を作る** — 授業のあと。発展以外の 12 個に「聞いた」の印。記録 [0]
+3. **実験 1〜8** — 確かめては `mark()` で印を上げ、`link()` で道をつなぐ
+
+| 実験 | 内容 | 印が動くノード |
+|:--|:--|:--|
+| 1 篩 | 100 までの表を自分で消す | 素数・合成数・篩・約数と倍数 → 2 |
+| 2 割っていく | 割り算で分解。2〜10000 を sympy と照合 | 素因数分解・手順・累乗 → 3 |
+| 3 因数の木 | 360 を 3 通りに分けても葉は同じ。2〜2000 を無作為順で確認。1 を素数にすると壊れる | 一意性 → **2 のまま**、1は素数ではない → 3。記録 [1] |
+| 4（発展）H の世界 | 4n+1 の数だけの世界では 441 = 9×49 = 21×21 | 一意性は「当たり前ではない」と分かる。印は 2 のまま、わけを更新 |
+| 5 約数の個数 | 表から (指数+1) の積を予想し 1〜10000 で確認 | 約数の個数 → 3。ただし一意性（2）を **借りている** ⚠ |
+| 6 平方数 | 指数がすべて偶数なら平方数 | 平方数 → 3 |
+| 7（発展）ユークリッド | 2·3·…·p + 1 の表から証明を組み立てる | 素数は無限にある → **4**。その証明が使う素因数分解も 3 → 4 に上げ直す |
+| 8（発展）素数レース | 4 で割って 3 余る素数と 1 余る素数の数くらべ。26861 で初めて逆転 | 素数の偏り → 2（30000 まで見ただけ） |
+
+4. **成長を見る** — 記録 [2]。`diff` と二重枠の地図、3 枚の縮小履歴
+5. **問いかけ** — `ask_me()` が地図の状態から問いを作る（規則ベース）。生成 AI 用の指示文の例も付属（API は呼ばない）
+6. **保存** — `save_map()` / `load_map()`（JSON）
+
+| 実験4：H の世界の 441 | 実験8：素数レース |
+|:--:|:--:|
+| ![](https://jxta.github.io/kg-grounding-proto/figures/h_trees.png) | ![](https://jxta.github.io/kg-grounding-proto/figures/prime_race.png) |
+
+## 設計の原則との対応
+
+| 原則 | 実装 |
+|:--|:--|
+| (a) ノードに根拠と接地状態 | `mark(node, level, why, evidence, uses)`。上げるときは「わけ」と「どの実験か」を必ず書く |
+| (b) 差分＝成長の実感 | `snapshot` / `diff` / `show_map(compare=)` / `show_history` |
+| (c) 事実は定まるが矢印は選択 | 教科書の道は薄い灰色の背景。生徒の道は黒。一致度は採点しない |
+| (d) 観察と証明の区別 | 「たしかめた」と「証明できる」を分ける。一意性・素数の偏りは 2 で止める。26861 の逆転 |
+| (d′) 説明が何を借りているかを見せる | `uses` と `check()`：弱い材料は ⚠ と黒の点線（「〜が正しいとすれば」） |
+| (e) 小さく始める | 14 ノード・1 ファイル・依存は sympy / networkx / matplotlib のみ。紙から始めてもよい |
+| (f) AI は作らず問う | `ask_me()`。LLM 用指示文も「地図を作り直さない・答えを言わない・根拠を尋ねる」 |
+| (g) グラフ由来の指標を目的化しない | ノード数・接地率・採点の機能を付けていない。評価は転移課題・説明課題・動機づけ尺度で |
+
+## ファイル
+
+| ファイル | 用途 |
+|:--|:--|
+| `kg_prime_factorization.ipynb` | 本体。道具のセル（先頭 5 つ）は折りたたんである |
+| `PRESENTATION_GUIDE.md` | 10 分デモの順序と想定 Q&A |
+| `requirements.txt` / `apt.txt` | 依存（Binder もこれを読む） |
+| `tools/make_font_subset.py` | Noto Sans CJK JP のサブセット（約 1.8 MB）を `fonts/` に作る。JupyterLite・CI・CJK フォントのない環境用。その字体にない記号（≤ ⁴ ⚠ など）は DejaVu Sans で補う |
+| `fonts/NotoSansCJKjp-Regular-subset.otf` | 同梱の日本語フォント（上のツールで作ったもの、約 1.8 MB）。`fonts/LICENSE-OFL.txt` はそのライセンス（SIL OFL 1.1） |
+| `.github/workflows/deploy.yml` | push のたびにノートを実行し、図・HTML・JupyterLite を GitHub Pages に置く |
+
+GitHub Pages に置かれるもの：[JupyterLite](https://jxta.github.io/kg-grounding-proto/)、
+[図 11 枚](https://jxta.github.io/kg-grounding-proto/figures/map_2_final.png)（`figures/*.png`、モノクロ 200 dpi）、
+[実行結果つき HTML](https://jxta.github.io/kg-grounding-proto/kg_prime_factorization.html)、
+[実行結果つきノート](https://nbviewer.org/url/jxta.github.io/kg-grounding-proto/kg_prime_factorization_executed.ipynb)。
+どれも push のたびに作り直されるので、リポジトリには入れていない（フォントだけは同梱）。
+
+## ライセンス
+
+コードは MIT、文章・図・教材の構成は CC BY 4.0（クレジット：Shigetoshi Yokoyama）。詳しくは [LICENSE-CONTENT.md](LICENSE-CONTENT.md)。
+
+## 限界
+
+- プロトタイプ。**教室では未検証**。「Aさん」の印と「わけ」は作者が書いた想定例
+- 印は自己申告。先生が確認する枠は未実装（`my_map.json` のログで後から追える）
+- 実験 4・7・8 は発展。単元の本体は実験 1・2・3・5・6
+- 別の単元に使うには `UNIT` 辞書（道具セル）のノードと矢印を書き換える。ノードは 10〜20 個に絞る
