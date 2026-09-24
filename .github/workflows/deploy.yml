@@ -35,12 +35,18 @@ jobs:
 
       - name: Commit the generated font once (so raw.githubusercontent.com can serve it)
         if: env.GENERATED == '1' && github.ref == 'refs/heads/main'
+        continue-on-error: true   # 失敗しても配信は続ける（Re-run で古いコミットを見ているときなど）
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add fonts/*.otf
-          git commit -m "Add generated Japanese font subset [skip ci]"
-          git push
+          git fetch origin main
+          if git cat-file -e origin/main:fonts/NotoSansCJKjp-Regular-subset.otf 2>/dev/null; then
+            echo "font already on origin/main; nothing to commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add fonts/*.otf
+            git commit -m "Add generated Japanese font subset [skip ci]"
+            git push origin HEAD:main
+          fi
 
       - name: Execute the notebook (figures + executed copy + HTML)
         env:
