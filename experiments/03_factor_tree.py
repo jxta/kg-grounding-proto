@@ -14,6 +14,7 @@
 
 # %%
 import sys; sys.path.insert(0, ".")
+import numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）
 from kg_tools import *
 
 t1 = factor_tree(360)                                          # 小さい素数から割る
