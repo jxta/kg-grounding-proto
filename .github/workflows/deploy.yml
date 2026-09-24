@@ -1,0 +1,84 @@
+# ノートを実行して図と HTML を作り、JupyterLite と一緒に GitHub Pages に置く
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: python -m pip install -r requirements-ci.txt
+
+      - name: Japanese font subset -> fonts/
+        run: |
+          if ls fonts/*.otf >/dev/null 2>&1; then echo "font already in repo"; else echo "GENERATED=1" >> "$GITHUB_ENV"; fi
+          python tools/make_font_subset.py
+
+      - name: Commit the generated font once (so raw.githubusercontent.com can serve it)
+        if: env.GENERATED == '1' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fonts/*.otf
+          git commit -m "Add generated Japanese font subset [skip ci]"
+          git push
+
+      - name: Execute the notebook (figures + executed copy + HTML)
+        env:
+          KG_FIG_DIR: _figures
+        run: |
+          jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 \
+            --output kg_prime_factorization_executed.ipynb kg_prime_factorization.ipynb
+          jupyter nbconvert --to html --TagRemovePreprocessor.enabled=True \
+            --TagRemovePreprocessor.remove_input_tags='{"helper"}' \
+            --output kg_prime_factorization.html kg_prime_factorization_executed.ipynb
+
+      - name: Build JupyterLite
+        run: |
+          mkdir -p _lite/fonts
+          cp kg_prime_factorization.ipynb _lite/
+          cp fonts/* _lite/fonts/
+          jupyter lite build --contents _lite --output-dir dist
+
+      - name: Add figures, executed notebook and HTML to the site
+        run: |
+          cp -r _figures dist/figures
+          cp kg_prime_factorization_executed.ipynb kg_prime_factorization.html dist/
+          touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
