@@ -1,4 +1,4 @@
-# ノートを実行して図と HTML を作り、JupyterLite と一緒に GitHub Pages に置く
+# ノートを実行して図と HTML を作り、実験ノートと地図アプリと JupyterLite を GitHub Pages に置く
 name: build-and-deploy
 
 on:
@@ -29,26 +29,27 @@ jobs:
         run: python -m pip install -r requirements-ci.txt
 
       - name: Japanese font subset -> fonts/
-        run: |
-          if ls fonts/*.otf >/dev/null 2>&1; then echo "font already in repo"; else echo "GENERATED=1" >> "$GITHUB_ENV"; fi
-          python tools/make_font_subset.py
+        run: python tools/make_font_subset.py
 
-      - name: Commit the generated font once (so raw.githubusercontent.com can serve it)
-        if: env.GENERATED == '1' && github.ref == 'refs/heads/main'
+      - name: Experiment notebooks from percent scripts (experiments/*.py -> *.ipynb)
+        run: jupytext --to ipynb experiments/[0-9]*.py
+
+      - name: Commit generated files once (font subset, experiment notebooks)
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true   # 失敗しても配信は続ける（Re-run で古いコミットを見ているときなど）
         run: |
           git fetch origin main
-          if git cat-file -e origin/main:fonts/NotoSansCJKjp-Regular-subset.otf 2>/dev/null; then
-            echo "font already on origin/main; nothing to commit"
+          git add fonts/*.otf experiments/*.ipynb
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add fonts/*.otf
-            git commit -m "Add generated Japanese font subset [skip ci]"
+            git commit -m "Update generated files (font subset, experiment notebooks) [skip ci]"
             git push origin HEAD:main
           fi
 
-      - name: Execute the notebook (figures + executed copy + HTML)
+      - name: Execute the main notebook (figures + executed copy + HTML)
         env:
           KG_FIG_DIR: _figures
         run: |
@@ -58,15 +59,23 @@ jobs:
             --TagRemovePreprocessor.remove_input_tags='{"helper"}' \
             --output kg_prime_factorization.html kg_prime_factorization_executed.ipynb
 
-      - name: Build JupyterLite
+      - name: Check that every experiment notebook runs
         run: |
-          mkdir -p _lite/fonts
+          for nb in experiments/[0-9]*.ipynb; do
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 --output-dir _check "$nb"
+          done
+
+      - name: Build JupyterLite (main notebook + experiments + fonts)
+        run: |
+          mkdir -p _lite/fonts _lite/experiments
           cp kg_prime_factorization.ipynb _lite/
           cp fonts/* _lite/fonts/
+          cp experiments/[0-9]*.ipynb experiments/kg_tools.py _lite/experiments/
           jupyter lite build --contents _lite --output-dir dist
 
-      - name: Add figures, executed notebook and HTML to the site
+      - name: Add the map app, figures, executed notebook and HTML to the site
         run: |
+          cp -r app dist/app
           cp -r _figures dist/figures
           cp kg_prime_factorization_executed.ipynb kg_prime_factorization.html dist/
           touch dist/.nojekyll
