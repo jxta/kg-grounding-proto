@@ -73,9 +73,10 @@ jobs:
           cp experiments/[0-9]*.ipynb experiments/kg_tools.py _lite/experiments/
           jupyter lite build --contents _lite --output-dir dist
 
-      - name: Add the map app, figures, executed notebook and HTML to the site
+      - name: Add the map app, the playground, figures, executed notebook and HTML to the site
         run: |
           cp -r app dist/app
+          cp -r play dist/play
           cp -r _figures dist/figures
           cp kg_prime_factorization_executed.ipynb kg_prime_factorization.html dist/
           touch dist/.nojekyll
