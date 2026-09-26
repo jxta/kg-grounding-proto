@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>数の遊び場</title>
+<style>
+  :root { --ink:#111; --ink2:#444; --ink3:#777; --line:#bbb; --line2:#ddd; --paper:#fff; --paper2:#f4f4f4; box-sizing:border-box;
+          padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:-apple-system,"Hiragino Sans","Yu Gothic","Noto Sans CJK JP","Noto Sans JP","Segoe UI",sans-serif; font-size:14px; line-height:1.55; }
+  header { display:flex; align-items:center; gap:12px; padding:8px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:15px; font-weight:600; margin:0; }
+  header .sub { color:var(--ink3); font-size:12px; }
+  header .spacer { flex:1; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { background:var(--paper); border:1px solid var(--ink); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  button:hover { background:var(--paper2); }
+  button.primary { background:var(--ink); color:#fff; }
+  button.quiet { border-color:var(--line); color:var(--ink2); }
+  button.small { padding:2px 8px; font-size:12px; }
+  input[type=number], input[type=text], select { border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
+  input[type=number] { width:80px; }
+  textarea { width:100%; min-height:56px; border:1px solid var(--line); border-radius:6px; padding:6px; resize:vertical; }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 400px; height:calc(100% - 46px); }
+  #left { display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line); }
+  .toys { display:flex; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .toys button, .tabs button { flex:1; border:0; border-radius:0; padding:8px 4px; background:var(--paper2); color:var(--ink2); white-space:nowrap; }
+  .toys button.active, .tabs button.active { background:var(--paper); color:var(--ink); border-bottom:2px solid var(--ink); }
+  .toy { display:none; overflow:auto; padding:12px 14px; flex:1; min-height:0; }
+  .toy.active { display:block; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  .muted { color:var(--ink3); font-size:12px; }
+  svg.grid { width:100%; max-width:720px; height:auto; display:block; }
+  svg.grid rect.cell { fill:#fff; stroke:#bbb; stroke-width:.6; cursor:pointer; }
+  svg.grid rect.cell.off { fill:#e6e6e6; }
+  svg.grid text { pointer-events:none; font-size:11px; }
+  svg.grid text.off { fill:#9a9a9a; }
+  svg.grid line.strike { stroke:#9a9a9a; stroke-width:1; pointer-events:none; }
+  svg.tree { width:100%; max-width:900px; height:auto; display:block; }
+  svg.race { width:100%; max-width:900px; height:auto; display:block; }
+  .trees { display:flex; gap:12px; flex-wrap:wrap; }
+  .tree-box { border:1px solid var(--line2); border-radius:8px; padding:8px; flex:1; min-width:260px; }
+  .chooser { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; }
+  .chooser button { font-size:12px; padding:2px 8px; }
+  table.tbl { border-collapse:collapse; font-size:12px; }
+  table.tbl td, table.tbl th { border:1px solid var(--line2); padding:2px 6px; text-align:right; }
+  table.tbl th { background:var(--paper2); font-weight:600; }
+  .result { border-left:3px solid var(--ink); background:var(--paper2); padding:6px 10px; margin:8px 0; }
+  details { margin:6px 0; } summary { cursor:pointer; color:var(--ink2); }
+  aside { display:flex; flex-direction:column; min-height:0; }
+  .tabs { display:flex; border-bottom:1px solid var(--line); }
+  .panel { display:none; overflow:auto; padding:12px 14px; flex:1; min-height:0; }
+  .panel.active { display:block; }
+  h2 { font-size:15px; margin:4px 0 8px; }
+  h3 { font-size:13px; margin:12px 0 6px; color:var(--ink2); }
+  /* cards */
+  .card { border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:6px 0; background:#fff; }
+  .card.q { border-style:dashed; }
+  .card.rule { border-width:2px; }
+  .card .head { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .card .type { font-size:11px; border:1px solid var(--ink); border-radius:10px; padding:0 6px; }
+  .card .st { font-size:11px; color:var(--ink2); }
+  .card .st.hit { color:#111; font-weight:600; }
+  .card .st.miss { color:#111; font-weight:600; text-decoration:underline; }
+  .card .txt { margin:3px 0; white-space:pre-wrap; }
+  .card .ops { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+  .card .ops button { font-size:11px; padding:1px 6px; }
+  .card .book { font-size:11px; color:var(--ink3); }
+  .kids { margin-left:14px; border-left:2px solid var(--line2); padding-left:8px; }
+  .seeds { display:flex; gap:4px; flex-wrap:wrap; margin:4px 0; }
+  .seeds button { font-size:11px; padding:1px 6px; }
+  #chat { display:flex; flex-direction:column; height:100%; }
+  #chatlog { flex:1; overflow:auto; }
+  .msg { margin:6px 0; display:flex; }
+  .msg .bubble { max-width:92%; padding:7px 10px; border-radius:10px; white-space:pre-wrap; }
+  .msg.ai .bubble { background:var(--paper2); border:1px solid var(--line2); }
+  .msg.me { justify-content:flex-end; } .msg.me .bubble { background:var(--ink); color:#fff; }
+  .msg .who { font-size:11px; color:var(--ink3); margin:0 4px 2px; }
+  #chatform { display:flex; gap:6px; padding-top:8px; border-top:1px solid var(--line2); }
+  #chatform input { flex:1; }
+  .toast { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
+  .toast.show { opacity:1; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; grid-template-rows:auto auto; height:auto; } #left { border-right:0; border-bottom:1px solid var(--line); } }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink:#eee; --ink2:#ccc; --ink3:#999; --line:#555; --line2:#3a3a3a; --paper:#151515; --paper2:#222; }
+    :root:not([data-theme="light"]) svg { background:#fff; color:#111; }
+    :root:not([data-theme="light"]) .card { background:#fff; color:#111; }
+    :root:not([data-theme="light"]) .card button, :root:not([data-theme="light"]) .card select, :root:not([data-theme="light"]) .card textarea { color:#111; background:#fff; border-color:#111; }
+    :root:not([data-theme="light"]) .card .st, :root:not([data-theme="light"]) .card .book { color:#333; }
+    :root:not([data-theme="light"]) .msg.me .bubble { background:#eee; color:#111; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>数の遊び場</h1><span class="sub">いじる → 気づく → 予想する → 試す → また問う</span>
+  <span class="spacer"></span>
+  <button class="quiet" id="btn-help">使い方</button>
+</header>
+<main>
+  <section id="left">
+    <div class="toys">
+      <button data-toy="grid" class="active">数の表</button>
+      <button data-toy="tree">分ける</button>
+      <button data-toy="div">約数</button>
+      <button data-toy="race">レース</button>
+      <button data-toy="world">世界を作る</button>
+      <button data-toy="test">予想を試す機械</button>
+    </div>
+    <div class="toy active" id="toy-grid"></div>
+    <div class="toy" id="toy-tree"></div>
+    <div class="toy" id="toy-div"></div>
+    <div class="toy" id="toy-race"></div>
+    <div class="toy" id="toy-world"></div>
+    <div class="toy" id="toy-test"></div>
+  </section>
+  <aside>
+    <div class="tabs">
+      <button data-tab="cards" class="active">わたしの地図</button>
+      <button data-tab="ai">AI</button>
+      <button data-tab="book">教科書の地図</button>
+      <button data-tab="set">設定</button>
+    </div>
+    <div class="panel active" id="panel-cards"></div>
+    <div class="panel" id="panel-ai"><div id="chat"><div id="chatlog"></div>
+      <form id="chatform"><input type="text" id="chatin" placeholder="AI に話しかける（例：平方数の約数っていつも奇数個？）" autocomplete="off"><button class="primary">送る</button></form></div></div>
+    <div class="panel" id="panel-book"></div>
+    <div class="panel" id="panel-set"></div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================================
+// 数学の道具（篩・約数・性質）— おもちゃと「予想を試す機械」が共有する
+// =====================================================================
+const MAXN = 200000;
+let _sieve = null;
+function sieveUpTo(N) {
+  if (_sieve && _sieve.length > N) return _sieve;
+  const s = new Uint8Array(N + 1); s.fill(1); s[0] = 0; s[1] = 0;
+  for (let i = 2; i * i <= N; i++) if (s[i]) for (let j = i * i; j <= N; j += i) s[j] = 0;
+  _sieve = s; return s;
+}
+const isPrime = n => n >= 2 && sieveUpTo(Math.max(n, 1000))[n] === 1;
+function divisors(n) { const out = []; for (let d = 1; d * d <= n; d++) if (n % d === 0) { out.push(d); if (d * d !== n) out.push(n / d); } return out.sort((a, b) => a - b); }
+const divisorCount = n => divisors(n).length;
+function factorint(n) { const f = []; let m = n; for (let p = 2; p * p <= m; p++) { let e = 0; while (m % p === 0) { m /= p; e++; } if (e) f.push([p, e]); } if (m > 1) f.push([m, 1]); return f; }
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const sup = e => String(e).split("").map(c => SUP[+c]).join("");
+const factorStr = n => n === 1 ? "1" : factorint(n).map(([p, e]) => e > 1 ? p + sup(e) : String(p)).join(" × ");
+const isSquare = n => { const r = Math.round(Math.sqrt(n)); return r * r === n; };
+const isCube = n => { const r = Math.round(Math.cbrt(n)); return r * r * r === n; };
+const isTriangular = n => isSquare(8 * n + 1);
+const digitSum = n => String(n).split("").reduce((a, c) => a + +c, 0);
+const isPalin = n => { const s = String(n); return s === s.split("").reverse().join(""); };
+function twoSquares(n) { for (let a = 0; a * a * 2 <= n; a++) { const b2 = n - a * a; const b = Math.round(Math.sqrt(b2)); if (b * b === b2) return [a, b]; } return null; }
+function twoPrimes(n) { for (let p = 2; p <= n / 2; p++) if (isPrime(p) && isPrime(n - p)) return [p, n - p]; return null; }
+// 「性質」のメニュー。id, 名前（{k} などは引数）, 引数, 判定関数
+const PREDS = [
+  {id: "prime", name: "素数", f: n => isPrime(n)},
+  {id: "composite", name: "合成数", f: n => n > 1 && !isPrime(n)},
+  {id: "odd", name: "奇数", f: n => n % 2 === 1},
+  {id: "even", name: "偶数", f: n => n % 2 === 0},
+  {id: "square", name: "平方数", f: n => isSquare(n)},
+  {id: "cube", name: "立方数", f: n => isCube(n)},
+  {id: "tri", name: "三角数", f: n => isTriangular(n)},
+  {id: "divk", name: "約数がちょうど {k} 個", args: [["k", 3]], f: (n, a) => divisorCount(n) === a.k},
+  {id: "divodd", name: "約数が奇数個", f: n => divisorCount(n) % 2 === 1},
+  {id: "diveven", name: "約数が偶数個", f: n => divisorCount(n) % 2 === 0},
+  {id: "modr", name: "{m} で割ると {r} 余る", args: [["m", 4], ["r", 1]], f: (n, a) => n % a.m === a.r},
+  {id: "multm", name: "{m} で割り切れる", args: [["m", 3]], f: (n, a) => n % a.m === 0},
+  {id: "endd", name: "一の位が {d}", args: [["d", 7]], f: (n, a) => n % 10 === a.d},
+  {id: "dsum", name: "桁の和が {m} の倍数", args: [["m", 3]], f: (n, a) => digitSum(n) % a.m === 0},
+  {id: "palin", name: "逆から読んでも同じ", f: n => isPalin(n)},
+  {id: "sq2", name: "2 つの平方数の和（0² も可）", f: n => !!twoSquares(n)},
+  {id: "pr2", name: "2 つの素数の和", f: n => !!twoPrimes(n)},
+  {id: "pplus2", name: "2 を足しても素数", f: n => isPrime(n) && isPrime(n + 2)},
+  {id: "poly", name: "n² + n + 41 の形（n=0,1,2,…）", f: n => { for (let k = 0; k * k + k + 41 <= n; k++) if (k * k + k + 41 === n) return true; return false; }},
+  {id: "gt", name: "{a} より大きい", args: [["a", 1]], f: (n, a) => n > a.a},
+  {id: "any", name: "どんな数でも（全部）", f: () => true},
+];
+const predById = id => PREDS.find(p => p.id === id);
+const predName = (id, args) => { const p = predById(id); let s = p.name; for (const [k] of (p.args || [])) s = s.replace("{" + k + "}", args[k]); return s; };
+const predTest = (id, args, n) => predById(id).f(n, args || {});
+
+// =====================================================================
+// 単元の地図（教科書の言葉）— 隠してある。子どもが「あとで」自分のカードとつなぐためのもの
+// =====================================================================
+const BOOK = {
+  divisor_multiple: "約数と倍数", composite: "合成数", prime: "素数", factorization: "素因数分解", one_not_prime: "1は素数ではない",
+  sieve: "エラトステネスの篩", exponent: "累乗の表し方", trial_division: "素因数分解の手順", uniqueness: "分解はただ一通り（一意性）",
+  square: "平方数", gcd_lcm: "最大公約数・最小公倍数", divisor_count: "約数の個数", infinite_primes: "素数は無限にある", prime_race: "素数の偏り（4で割った余り）",
+};
+
+// =====================================================================
+// わたしの地図：カード（問い・気づき・予想・きまり）と、そのつながり（探究の木）
+// =====================================================================
+const STORE = "kg-play:v1", SETTINGS = "kg-play:settings";
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const now = () => { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const TYPES = {q: "問い", notice: "気づき", guess: "予想", rule: "きまり"};
+let state, settings, ui = {toy: "grid", tab: "cards", selected: null};
+
+function newState(name) { return {name, created: now(), cards: [], log: []}; }
+function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) return s; } catch (e) {} return null; }
+function saveState() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+function loadSettings() { const d = {llm: false, apiKey: "", model: "claude-sonnet-4-6", liteBase: "../"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
+function saveSettings() { try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} }
+function toast(t) { const e = $("#toast"); e.textContent = t; e.classList.add("show"); clearTimeout(e._h); e._h = setTimeout(() => e.classList.remove("show"), 2600); }
+let _cid = 0;
+function addCard(c) {
+  const card = Object.assign({id: "c" + Date.now().toString(36) + (_cid++), type: "notice", text: "", status: "", note: "", params: null, parent: null, book: null, t: now()}, c);
+  state.cards.push(card); state.log.push({t: now(), what: "add", id: card.id, type: card.type}); saveState(); renderCards(); return card;
+}
+const cardById = id => state.cards.find(c => c.id === id);
+
+// 問いの種：一枚のカードから次の問いを作る「探究の型」（中身は子どもが書き直す）
+const SEEDS = [
+  ["もっと先", c => `「${c.text}」は、もっと大きい数でも同じ？`],
+  ["はしっこ", c => `「${c.text}」は、0 や 1 や 2 ではどうなる？`],
+  ["変えてみる", c => `「${c.text}」の数を変えたら（4 を 3 に、素数を奇数に…）どうなる？`],
+  ["逆は？", c => `「${c.text}」の逆は言える？（〜なら〜、をひっくり返す）`],
+  ["なぜ？", c => `「${c.text}」は、なぜそうなる？`],
+  ["反例さがし", c => `「${c.text}」が外れる数はある？ 探してみる`],
+  ["似た形", c => `「${c.text}」に似た形のことは、ほかにもある？`],
+];
+
+// =====================================================================
+// おもちゃ 1：数の表（自分で消す・余りで色分け）
+// =====================================================================
+const gridState = {N: 100, off: new Set(), modColor: 0};
+function renderGrid() {
+  const el = $("#toy-grid"), N = gridState.N, cols = 10, rows = Math.ceil(N / cols), cell = 40;
+  const svgParts = [];
+  const shade = n => { const m = gridState.modColor; if (!m) return null; const r = n % m; const g = Math.round(245 - r * (185 / Math.max(1, m - 1))); return {fill: `rgb(${g},${g},${g})`, dark: g < 140}; };
+  for (let n = 1; n <= N; n++) {
+    const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, off = gridState.off.has(n), sh = shade(n);
+    const fill = off ? "#e6e6e6" : (sh ? sh.fill : "#fff");
+    svgParts.push(`<rect class="cell${off ? " off" : ""}" data-n="${n}" x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="4" style="fill:${fill}"></rect>`);
+    svgParts.push(`<text class="${off ? "off" : ""}" x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" style="fill:${off ? "#9a9a9a" : (sh && sh.dark ? "#fff" : "#111")};font-weight:${(!off && gridState.modColor === 0) ? 400 : 400}">${n}</text>`);
+    if (off) svgParts.push(`<line class="strike" x1="${x+8}" y1="${y+cell-8}" x2="${x+cell-8}" y2="${y+8}"></line>`);
+  }
+  const remaining = []; for (let n = 1; n <= N; n++) if (!gridState.off.has(n)) remaining.push(n);
+  el.innerHTML = `
+    <div class="row">数をおしてみる（おすと消える。もう一度おすと戻る）　
+      <label>表の大きさ <input type="number" id="g-N" value="${N}" min="10" max="400" step="10"></label>
+      <label>k の倍数を消す（k 自身は残す） <input type="number" id="g-k" value="2" min="2" max="400"></label><button class="small" id="g-cross">消す</button>
+      <button class="small quiet" id="g-reset">全部戻す</button></div>
+    <div class="row"><label>m で割った余りで色を分ける <input type="number" id="g-mod" value="${gridState.modColor}" min="0" max="12"></label><span class="muted">0 で色なし</span></div>
+    <svg class="grid" viewBox="0 0 ${cols*cell} ${rows*cell}" xmlns="http://www.w3.org/2000/svg">${svgParts.join("")}</svg>
+    <div class="row muted">残っている数：${remaining.length} 個　${remaining.length <= 60 ? remaining.join(", ") : remaining.slice(0, 60).join(", ") + " …"}</div>
+    <div class="row"><button class="small" id="g-card">この表で気づいたことをカードにする</button></div>
+    <details><summary>いじり方の例（見なくてもいい）</summary><div class="muted">2 の倍数、3 の倍数、… と消していく／余りの色で縦や斜めの模様を見る／消したあとに残った数の並びを眺める／表を大きくして同じことをする</div></details>`;
+  el.querySelectorAll("rect.cell").forEach(r => r.addEventListener("click", () => { const n = +r.dataset.n; if (gridState.off.has(n)) gridState.off.delete(n); else gridState.off.add(n); renderGrid(); }));
+  el.querySelector("#g-N").addEventListener("change", ev => { gridState.N = Math.max(10, Math.min(400, +ev.target.value || 100)); renderGrid(); });
+  el.querySelector("#g-mod").addEventListener("change", ev => { gridState.modColor = Math.max(0, Math.min(12, +ev.target.value || 0)); renderGrid(); });
+  el.querySelector("#g-cross").addEventListener("click", () => { const k = +el.querySelector("#g-k").value; if (k < 2) return; for (let n = 2 * k; n <= gridState.N; n += k) gridState.off.add(n); renderGrid(); });
+  el.querySelector("#g-reset").addEventListener("click", () => { gridState.off.clear(); renderGrid(); });
+  el.querySelector("#g-card").addEventListener("click", () => promptCard("notice", "数の表で気づいたこと（自分の言葉で）", `表で ${gridState.off.size} 個消したら…`, {toy: "grid", N: gridState.N, off: Array.from(gridState.off), mod: gridState.modColor}));
+}
+
+// =====================================================================
+// おもちゃ 2：分ける（因数の木を自分で作る。1 で割ることもできる）
+// =====================================================================
+const treeState = {trees: [{n: 360, root: {v: 360}}], allowOne: false};
+function leavesOf(t) { return t.kids ? [...leavesOf(t.kids[0]), ...leavesOf(t.kids[1])] : [t.v]; }
+function depthOf(t) { return t.kids ? 1 + Math.max(depthOf(t.kids[0]), depthOf(t.kids[1])) : 1; }
+function layoutTree(t, depth = 0, x0 = 0, acc = new Map()) {
+  if (!t.kids) { acc.set(t, [x0, depth]); return [acc, x0 + 1]; }
+  let [_, x1] = layoutTree(t.kids[0], depth + 1, x0, acc); let [__, x2] = layoutTree(t.kids[1], depth + 1, x1, acc);
+  acc.set(t, [(acc.get(t.kids[0])[0] + acc.get(t.kids[1])[0]) / 2, depth]); return [acc, x2];
+}
+function renderTree() {
+  const el = $("#toy-tree");
+  const boxes = treeState.trees.map((tr, ti) => {
+    const [pos, w] = layoutTree(tr.root), d = depthOf(tr.root), cw = 64, ch = 60, W = Math.max(1, w) * cw + 20, H = d * ch + 20;
+    const parts = [];
+    let nodeIdx = 0; const nodes = [];
+    const walk = t => { nodes.push(t); t._i = nodeIdx++; if (t.kids) t.kids.forEach(walk); };
+    walk(tr.root);
+    for (const t of nodes) {
+      const [x, y] = pos.get(t), cx = x * cw + cw / 2 + 10, cy = y * ch + 30;
+      if (t.kids) for (const k of t.kids) { const [kx, ky] = pos.get(k); parts.push(`<line x1="${cx}" y1="${cy+12}" x2="${kx*cw+cw/2+10}" y2="${ky*ch+30-12}" stroke="#666" stroke-width=".9"></line>`); }
+      const leaf = !t.kids;
+      parts.push(`<rect data-t="${ti}" data-i="${t._i}" x="${cx-24}" y="${cy-12}" width="48" height="24" rx="6" style="fill:${leaf ? "#fff" : "#f4f4f4"};stroke:#111;stroke-width:${leaf ? 1.4 : .8};cursor:${leaf ? "pointer" : "default"}"></rect>`);
+      parts.push(`<text x="${cx}" y="${cy+4}" text-anchor="middle" style="font-size:12px;fill:#111;pointer-events:none">${t.v}</text>`);
+    }
+    const lv = leavesOf(tr.root);
+    return `<div class="tree-box"><div class="row"><label>数 <input type="number" class="t-n" data-t="${ti}" value="${tr.n}" min="2" max="100000"></label><button class="small quiet t-del" data-t="${ti}">この木を消す</button></div>
+      <svg class="tree" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${parts.join("")}</svg>
+      <div class="muted">葉：${lv.join(", ")}　（そろえると ${lv.slice().sort((a, b) => a - b).join(" × ")}）</div>
+      <div class="chooser" id="t-chooser-${ti}"></div></div>`;
+  });
+  el.innerHTML = `<div class="row">葉（白い箱）をおすと、分け方をえらべます。同じ数で 2 本、3 本と作って、葉をくらべてみる。
+      <label><input type="checkbox" id="t-one" ${treeState.allowOne ? "checked" : ""}> 1 で分けるのも許す</label>
+      <button class="small" id="t-add">木をもう一本</button></div>
+    <div class="trees">${boxes.join("")}</div>
+    <div class="row"><button class="small" id="t-card">木で気づいたことをカードにする</button></div>
+    <details><summary>いじり方の例（見なくてもいい）</summary><div class="muted">同じ数をちがう順で分けて、葉をくらべる／「1 で分ける」を許してみる／葉に出てくる数はどんな数？／大きい数（1001、2024）で試す</div></details>`;
+  el.querySelectorAll("input.t-n").forEach(inp => inp.addEventListener("change", ev => { const ti = +inp.dataset.t, n = Math.max(2, Math.min(100000, +ev.target.value || 2)); treeState.trees[ti] = {n, root: {v: n}}; renderTree(); }));
+  el.querySelectorAll("button.t-del").forEach(b => b.addEventListener("click", () => { if (treeState.trees.length > 1) { treeState.trees.splice(+b.dataset.t, 1); renderTree(); } }));
+  el.querySelector("#t-add").addEventListener("click", () => { if (treeState.trees.length < 3) { const n = treeState.trees[treeState.trees.length - 1].n; treeState.trees.push({n, root: {v: n}}); renderTree(); } });
+  el.querySelector("#t-one").addEventListener("change", ev => { treeState.allowOne = ev.target.checked; renderTree(); });
+  el.querySelectorAll("rect[data-i]").forEach(r => r.addEventListener("click", () => {
+    const ti = +r.dataset.t, i = +r.dataset.i; const tr = treeState.trees[ti]; let target = null; let idx = 0;
+    const walk = t => { if (idx++ === i) target = t; if (t.kids) t.kids.forEach(walk); }; walk(tr.root);
+    if (!target || target.kids) return;
+    const v = target.v, ds = divisors(v).filter(d => treeState.allowOne ? (d < v) : (d > 1 && d < v));
+    const ch = el.querySelector(`#t-chooser-${ti}`);
+    if (!ds.length) { ch.innerHTML = `<span class="muted">${v} はもう分けられない（${treeState.allowOne ? "" : "1 と自分以外で割れない"}）</span>`; return; }
+    ch.innerHTML = `<span class="muted">${v} を分ける：</span>` + ds.map(d => `<button data-d="${d}">${d} × ${v/d}</button>`).join("");
+    ch.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { const d = +b.dataset.d; target.kids = [{v: d}, {v: v / d}]; renderTree(); }));
+  }));
+  el.querySelector("#t-card").addEventListener("click", () => promptCard("notice", "木で気づいたこと（自分の言葉で）", `${treeState.trees[0].n} を分けたら…`, {toy: "tree", trees: treeState.trees.map(t => t.n)}));
+}
+
+// =====================================================================
+// おもちゃ 3：約数（一つの数の約数と、1〜N の約数の個数）
+// =====================================================================
+const divState = {n: 72, N: 60};
+function renderDiv() {
+  const el = $("#toy-div"), n = divState.n, ds = divisors(n), N = divState.N;
+  const bw = 12, H = 120, bars = [];
+  for (let k = 1; k <= N; k++) { const c = divisorCount(k), h = c * 9; bars.push(`<rect data-k="${k}" x="${(k-1)*bw+1}" y="${H-h}" width="${bw-2}" height="${h}" style="fill:${k===n?"#111":"#9a9a9a"};cursor:pointer"></rect>`); if (k % 5 === 0) bars.push(`<text x="${(k-1)*bw+bw/2}" y="${H+12}" text-anchor="middle" style="font-size:9px;fill:#444">${k}</text>`); }
+  el.innerHTML = `<div class="row"><label>数 <input type="number" id="d-n" value="${n}" min="1" max="1000000"></label>
+      <span>約数：<b>${ds.join(", ")}</b>（${ds.length} 個）　素因数分解：${factorStr(n)}</span></div>
+    <div class="row">1〜N の約数の個数（棒をおすとその数を見る）<label> N <input type="number" id="d-N" value="${N}" min="10" max="200"></label></div>
+    <svg class="race" viewBox="0 0 ${N*bw+10} ${H+20}" xmlns="http://www.w3.org/2000/svg">${bars.join("")}</svg>
+    <div class="row"><button class="small" id="d-card">約数で気づいたことをカードにする</button></div>
+    <details><summary>いじり方の例（見なくてもいい）</summary><div class="muted">約数が 2 個の数はどんな数？ 3 個は？／個数が奇数の数を集める／素因数分解と個数を並べてみる</div></details>`;
+  el.querySelector("#d-n").addEventListener("change", ev => { divState.n = Math.max(1, +ev.target.value || 1); renderDiv(); });
+  el.querySelector("#d-N").addEventListener("change", ev => { divState.N = Math.max(10, Math.min(200, +ev.target.value || 60)); renderDiv(); });
+  el.querySelectorAll("rect[data-k]").forEach(r => r.addEventListener("click", () => { divState.n = +r.dataset.k; renderDiv(); }));
+  el.querySelector("#d-card").addEventListener("click", () => promptCard("notice", "約数で気づいたこと（自分の言葉で）", `${n} の約数は ${ds.length} 個。`, {toy: "div", n}));
+}
+
+// =====================================================================
+// おもちゃ 4：レース（m で割った余りごとに素数を数えくらべる）
+// =====================================================================
+const raceState = {m: 4, a: 3, b: 1, N: 30000};
+function renderRace() {
+  const el = $("#toy-race"), {m, a, b, N} = raceState, s = sieveUpTo(N);
+  let ca = 0, cb = 0, first = null; const pts = []; let minD = 0, maxD = 0;
+  for (let n = 2; n <= N; n++) { if (s[n]) { if (n % m === a) ca++; else if (n % m === b) cb++; } const d = ca - cb; if (d < 0 && first === null) first = n; if (n % Math.max(1, Math.floor(N / 900)) === 0 || n === N) pts.push([n, d]); minD = Math.min(minD, d); maxD = Math.max(maxD, d); }
+  const W = 900, H = 240, sx = x => 40 + (x / N) * (W - 60), sy = d => 20 + (maxD - d) / Math.max(1, maxD - minD) * (H - 50);
+  const path = pts.map((p, i) => (i ? "L" : "M") + sx(p[0]).toFixed(1) + "," + sy(p[1]).toFixed(1)).join(" ");
+  const opts = k => Array.from({length: m}, (_, r) => `<option value="${r}" ${r === k ? "selected" : ""}>${r}</option>`).join("");
+  el.innerHTML = `<div class="row"><label>m <input type="number" id="r-m" value="${m}" min="2" max="12"></label>
+      <label>余り a <select id="r-a">${opts(a)}</select></label> と <label>余り b <select id="r-b">${opts(b)}</select></label>
+      <label>どこまで <input type="number" id="r-N" value="${N}" min="100" max="${MAXN}" step="100"></label><button class="small" id="r-go">数える</button></div>
+    <div class="muted">グラフ：（余り a の素数の個数）−（余り b の素数の個数）を、2 から x まで数えたもの</div>
+    <svg class="race" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="${sy(0)}" x2="${W-20}" y2="${sy(0)}" stroke="#999" stroke-width=".8"></line>
+      <path d="${path}" fill="none" stroke="#111" stroke-width="1"></path>
+      <text x="40" y="${H-6}" style="font-size:11px;fill:#444">2</text><text x="${W-20}" y="${H-6}" text-anchor="end" style="font-size:11px;fill:#444">${N}</text>
+      <text x="6" y="${sy(maxD)+4}" style="font-size:11px;fill:#444">${maxD}</text><text x="6" y="${sy(minD)+4}" style="font-size:11px;fill:#444">${minD}</text></svg>
+    <div class="result">${N} まで：余り ${a} の素数 ${ca} 個、余り ${b} の素数 ${cb} 個。${first === null ? `余り ${b} が多くなる x は一度もなかった（${N} まで）` : `初めて余り ${b} の方が多くなるのは x = ${first}`}</div>
+    <div class="row"><button class="small" id="r-card">レースで気づいたことをカードにする</button></div>
+    <details><summary>いじり方の例（見なくてもいい）</summary><div class="muted">m を 4 にして 3 と 1／m を 3 にして 2 と 1／どこまでを大きくする／「いつも a が多い」と言えそうなら、どこまで見たか書いておく</div></details>`;
+  const apply = () => { raceState.m = Math.max(2, Math.min(12, +el.querySelector("#r-m").value || 4)); raceState.N = Math.max(100, Math.min(MAXN, +el.querySelector("#r-N").value || 30000)); raceState.a = Math.min(+el.querySelector("#r-a").value, raceState.m - 1); raceState.b = Math.min(+el.querySelector("#r-b").value, raceState.m - 1); renderRace(); };
+  el.querySelector("#r-go").addEventListener("click", apply); el.querySelector("#r-m").addEventListener("change", apply);
+  el.querySelector("#r-card").addEventListener("click", () => promptCard("notice", "レースで気づいたこと（自分の言葉で）", `${m} で割って ${a} 余る素数と ${b} 余る素数を ${N} まで数えたら…`, {toy: "race", m, a, b, N}));
+}
+
+// =====================================================================
+// おもちゃ 5：世界を作る（m で割って r 余る数だけの世界。かけ算で閉じている r を選べる）
+// =====================================================================
+const worldState = {m: 4, r: 1, N: 600, n: 441};
+function worldOptions() { const out = []; for (let m = 2; m <= 12; m++) for (let r = 0; r < m; r++) if ((r * r) % m === r) out.push([m, r]); return out; }
+function inWorld(n, m, r) { return n >= 1 && n % m === r && !(r === 0 && n === 0); }
+function worldNums(m, r, N) { const out = []; for (let n = 1; n <= N; n++) if (inWorld(n, m, r)) out.push(n); return out; }
+function isWorldPrime(n, m, r) { if (n === 1) return false; if (!inWorld(n, m, r)) return false; for (let a = 2; a * a <= n; a++) if (n % a === 0 && inWorld(a, m, r) && inWorld(n / a, m, r) && a > 1 && n / a > 1) return false; return true; }
+function worldFactorizations(n, m, r) {
+  const res = new Set();
+  const rec = (v, start, cur) => {
+    if (v === 1 && r === 1) { res.add(cur.join("×")); return; }
+    for (let q = start; q * q <= v; q++) if (v % q === 0 && inWorld(q, m, r) && q > 1 && isWorldPrime(q, m, r)) rec(v / q, q, [...cur, q]);
+    if (v >= start && v > 1 && isWorldPrime(v, m, r)) res.add([...cur, v].join("×"));
+  };
+  rec(n, 2, []);
+  return Array.from(res);
+}
+function renderWorld() {
+  const el = $("#toy-world"), {m, r, N, n} = worldState;
+  const nums = worldNums(m, r, N), primes = nums.filter(x => isWorldPrime(x, m, r));
+  const multi = nums.filter(x => x > 1 && worldFactorizations(x, m, r).length > 1);
+  const fs = inWorld(n, m, r) ? worldFactorizations(n, m, r) : [];
+  el.innerHTML = `<div class="row"><label>世界のきまり：<select id="w-rule">${worldOptions().map(([mm, rr]) => `<option value="${mm},${rr}" ${mm===m&&rr===r?"selected":""}>${mm} で割って ${rr} 余る数だけ</option>`).join("")}</select></label>
+      <label>どこまで <input type="number" id="w-N" value="${N}" min="50" max="3000" step="50"></label></div>
+    <div class="muted">この世界の数どうしをかけても世界の外に出ない。この世界の「素数」＝世界の中の 2 つの数（どちらも 1 でない）の積に書けない数、と決める。</div>
+    <div class="result">この世界の数（${N} まで）：${nums.length} 個。「素数」：${primes.slice(0, 40).join(", ")}${primes.length > 40 ? " …" : ""}<br>
+      2 通り以上に分かれる数（${N} まで）：${multi.length ? multi.slice(0, 30).join(", ") + (multi.length > 30 ? " …" : "") : "なし"}</div>
+    <div class="row"><label>数 <input type="number" id="w-n" value="${n}" min="1" max="100000"></label>
+      <span>${inWorld(n, m, r) ? (fs.length ? `この世界での分け方：<b>${fs.join("　＝　")}</b>（${fs.length} 通り）` : "この世界では「素数」") : `${n} はこの世界の数ではない`}</span></div>
+    <div class="row"><button class="small" id="w-card">この世界で気づいたことをカードにする</button></div>
+    <details><summary>いじり方の例（見なくてもいい）</summary><div class="muted">ふつうの世界（1 で割って 0 余る＝全部）では分け方が何通り？／4 で割って 1 余る世界で 441 を分ける／偶数だけの世界で 36 を分ける／どんな世界だと「ただ一通り」が壊れる？</div></details>`;
+  el.querySelector("#w-rule").addEventListener("change", ev => { const [mm, rr] = ev.target.value.split(",").map(Number); worldState.m = mm; worldState.r = rr; renderWorld(); });
+  el.querySelector("#w-N").addEventListener("change", ev => { worldState.N = Math.max(50, Math.min(3000, +ev.target.value || 600)); renderWorld(); });
+  el.querySelector("#w-n").addEventListener("change", ev => { worldState.n = Math.max(1, +ev.target.value || 1); renderWorld(); });
+  el.querySelector("#w-card").addEventListener("click", () => promptCard("notice", "世界で気づいたこと（自分の言葉で）", `${m} で割って ${r} 余る数だけの世界では…`, {toy: "world", m, r, N, n}));
+}
+
+// =====================================================================
+// おもちゃ 6：予想を試す機械（自分で組み立てた予想を N まで試す。反例が出たら見せる）
+// =====================================================================
+const testState = {form: "all", A: {id: "square", args: {}}, B: {id: "divodd", args: {}}, N: 1000};
+function predSelect(name, sel) {
+  const p = predById(sel.id);
+  return `<select data-p="${name}" class="p-id">${PREDS.map(x => `<option value="${x.id}" ${x.id === sel.id ? "selected" : ""}>${x.name.replace(/\{(\w+)\}/g, "…")}</option>`).join("")}</select>` +
+    (p.args || []).map(([k, dflt]) => `<label> ${k} <input type="number" class="p-arg" data-p="${name}" data-k="${k}" value="${sel.args[k] ?? dflt}" style="width:64px"></label>`).join("");
+}
+function runTest(t) {
+  const N = t.N, A = t.A, B = t.B, out = {N};
+  if (t.form === "all") {
+    const ex = [], hits = []; let total = 0;
+    for (let n = 1; n <= N; n++) if (predTest(A.id, A.args, n)) { total++; if (predTest(B.id, B.args, n)) { if (hits.length < 12) hits.push(n); } else if (ex.length < 12) ex.push(n); }
+    out.total = total; out.counter = ex; out.hits = hits; out.ok = ex.length === 0;
+    out.text = `「${predName(A.id, A.args)}の数は、全部${predName(B.id, B.args)}」を 1〜${N} で試した：${A.id === "any" ? "" : `当てはまる数 ${total} 個のうち`}${out.ok ? `反例なし（${N} まで）` : `反例 ${ex.join(", ")}${ex.length >= 12 ? " …" : ""}`}`;
+  } else if (t.form === "count") {
+    const list = []; let total = 0; for (let n = 1; n <= N; n++) if (predTest(A.id, A.args, n)) { total++; if (list.length < 30) list.push(n); }
+    out.total = total; out.text = `1〜${N} で「${predName(A.id, A.args)}」の数は ${total} 個：${list.join(", ")}${total > 30 ? " …" : ""}`;
+  } else {
+    const onlyA = [], onlyB = []; for (let n = 1; n <= N; n++) { const a = predTest(A.id, A.args, n), b = predTest(B.id, B.args, n); if (a && !b && onlyA.length < 12) onlyA.push(n); if (b && !a && onlyB.length < 12) onlyB.push(n); }
+    out.ok = !onlyA.length && !onlyB.length; out.onlyA = onlyA; out.onlyB = onlyB;
+    out.text = `「${predName(A.id, A.args)}」と「${predName(B.id, B.args)}」は同じ集まり？（1〜${N}）：${out.ok ? `ぴったり同じ（${N} まで）` : `A だけ：${onlyA.join(", ") || "なし"}／B だけ：${onlyB.join(", ") || "なし"}`}`;
+  }
+  return out;
+}
+let lastTest = null;
+function renderTest() {
+  const el = $("#toy-test"), t = testState;
+  el.innerHTML = `<div class="row"><label><input type="radio" name="tf" value="all" ${t.form==="all"?"checked":""}> 「A の数は、全部 B？」</label>
+      <label><input type="radio" name="tf" value="count" ${t.form==="count"?"checked":""}> 「A の数はいくつある？」</label>
+      <label><input type="radio" name="tf" value="same" ${t.form==="same"?"checked":""}> 「A と B は同じ集まり？」</label></div>
+    <div class="row">A：${predSelect("A", t.A)}</div>
+    <div class="row" id="t-Brow" style="${t.form==="count"?"display:none":""}">B：${predSelect("B", t.B)}</div>
+    <div class="row"><label>どこまで <input type="number" id="t-N" value="${t.N}" min="10" max="${MAXN}" step="10"></label><button class="primary" id="t-run">試す</button>
+      <span class="muted">機械は「N まで」しか見ない。N の先のことは、機械には分からない</span></div>
+    <div id="t-out"></div>
+    <details><summary>予想の例（見なくてもいい）</summary><div class="muted">平方数の約数は奇数個？／4 で割って 1 余る素数は 2 つの平方数の和？／偶数は 2 つの素数の和？／n²+n+41 の形の数は素数？／桁の和が 3 の倍数なら 3 で割り切れる？ 逆は？</div></details>`;
+  const readSel = name => { const id = el.querySelector(`select[data-p=${name}]`).value; const args = {}; el.querySelectorAll(`input.p-arg[data-p=${name}]`).forEach(i => args[i.dataset.k] = +i.value); return {id, args}; };
+  el.querySelectorAll("input[name=tf]").forEach(rb => rb.addEventListener("change", () => { t.form = rb.value; renderTest(); }));
+  el.querySelectorAll("select.p-id").forEach(s => s.addEventListener("change", () => { t.A = readSel("A"); if (t.form !== "count") t.B = readSel("B"); const nm = s.dataset.p; t[nm] = {id: s.value, args: Object.fromEntries((predById(s.value).args || []).map(([k, d]) => [k, d]))}; renderTest(); }));
+  el.querySelector("#t-run").addEventListener("click", () => {
+    t.A = readSel("A"); if (t.form !== "count") t.B = readSel("B"); t.N = Math.max(10, Math.min(MAXN, +el.querySelector("#t-N").value || 1000));
+    const res = runTest(t); lastTest = {form: t.form, A: t.A, B: t.B, N: t.N, res};
+    const status = t.form === "count" ? "" : (res.ok ? `<span class="st hit">当たり（${t.N} まで）</span>` : `<span class="st miss">外れ（反例あり）</span>`);
+    el.querySelector("#t-out").innerHTML = `<div class="result">${esc(res.text)}　${status}</div>
+      <div class="row"><button class="small" id="x-card">この結果を予想カードにする</button>${t.form === "all" ? `<button class="small quiet" id="x-rev">逆（B の数は全部 A？）も試す</button>` : ""}</div>`;
+    el.querySelector("#x-card").addEventListener("click", () => {
+      const text = t.form === "count" ? `1〜${t.N} で「${predName(t.A.id, t.A.args)}」の数は ${res.total} 個` : t.form === "all" ? `${predName(t.A.id, t.A.args)}の数は、全部${predName(t.B.id, t.B.args)}` : `「${predName(t.A.id, t.A.args)}」と「${predName(t.B.id, t.B.args)}」は同じ集まり`;
+      const c = addCard({type: t.form === "count" ? "notice" : "guess", text, status: t.form === "count" ? "" : (res.ok ? `当たり（${t.N} まで）` : `外れ：反例 ${(res.counter || [...res.onlyA, ...res.onlyB]).slice(0, 6).join(", ")}`), params: {toy: "test", form: t.form, A: t.A, B: t.B, N: t.N}, parent: ui.selected});
+      showTab("cards"); aiReactToCard(c);
+    });
+    const rev = el.querySelector("#x-rev"); if (rev) rev.addEventListener("click", () => { const a = t.A; t.A = t.B; t.B = a; renderTest(); el.querySelector("#t-run").click(); });
+  });
+}
+function openTestWith(params) { Object.assign(testState, {form: params.form, A: params.A, B: params.B, N: params.N}); showToy("test"); renderTest(); }
+
+// =====================================================================
+// カードを作る／地図（探究の木）を描く
+// =====================================================================
+function promptCard(type, title, dflt, params) {
+  const text = prompt(title + "\n（あとで書き直せます）", dflt); if (text === null || !text.trim()) return null;
+  const c = addCard({type, text: text.trim(), params, parent: ui.selected}); showTab("cards"); aiReactToCard(c); return c;
+}
+function renderCards() {
+  const el = $("#panel-cards"), cards = state.cards;
+  const kids = id => cards.filter(c => c.parent === id);
+  const one = c => `<div class="card ${c.type === "q" ? "q" : c.type === "rule" ? "rule" : ""}${ui.selected === c.id ? " sel" : ""}" data-id="${c.id}" style="${ui.selected === c.id ? "box-shadow:0 0 0 2px #111 inset" : ""}">
+      <div class="head"><span class="type">${TYPES[c.type]}</span>${c.status ? `<span class="st ${c.status.startsWith("当たり") ? "hit" : c.status.startsWith("外れ") ? "miss" : ""}">${esc(c.status)}</span>` : ""}<span class="muted">${esc(c.t)}</span></div>
+      <div class="txt">${esc(c.text)}</div>${c.note ? `<div class="muted">わけ・メモ：${esc(c.note)}</div>` : ""}${c.book ? `<div class="book">教科書ではたぶん「${esc(BOOK[c.book])}」</div>` : ""}
+      <div class="ops"><button data-op="select" data-id="${c.id}">${ui.selected === c.id ? "選択中" : "ここから続ける"}</button><button data-op="seed" data-id="${c.id}">問いの種</button>${c.params && c.params.toy === "test" ? `<button data-op="retest" data-id="${c.id}">試し直す</button>` : ""}<button data-op="edit" data-id="${c.id}">書き直す</button><button data-op="note" data-id="${c.id}">わけ・メモ</button><button data-op="status" data-id="${c.id}">状態</button><button data-op="book" data-id="${c.id}">教科書では？</button><button data-op="del" data-id="${c.id}" class="quiet">消す</button></div>
+      <div class="seeds" id="seeds-${c.id}"></div></div>` + (kids(c.id).length ? `<div class="kids">${kids(c.id).map(one).join("")}</div>` : "");
+  const roots = cards.filter(c => !c.parent || !cardById(c.parent));
+  el.innerHTML = `<h2>${esc(state.name)}の地図 <span class="muted">${cards.length ? "" : "（まだ何もない。それでいい）"}</span></h2>
+    <div class="row"><button class="small" data-new="q">問いを書く</button><button class="small" data-new="notice">気づきを書く</button><button class="small" data-new="guess">予想を書く</button><button class="small" data-new="rule">きまりを書く</button>${ui.selected ? `<button class="small quiet" id="c-unsel">選択をはずす</button>` : ""}</div>
+    <p class="muted">カードは自分の言葉で。予想は外れてもいい（外れた予想から次の問いが生まれる）。「ここから続ける」を選ぶと、次のカードがその下につながる。</p>
+    ${roots.map(one).join("") || ""}
+    <h3>保存</h3><div class="row"><button class="small" id="c-export">JSON に書き出す</button><label><button class="small quiet" onclick="this.nextElementSibling.click()">読み込む</button><input type="file" id="c-import" accept="application/json" style="display:none"></label></div>`;
+  el.querySelectorAll("[data-new]").forEach(b => b.addEventListener("click", () => promptCard(b.dataset.new, {q: "問い（例：約数が 3 個の数はどんな数？）", notice: "気づき（例：平方数だけ約数が奇数個だった）", guess: "予想（例：平方数の約数はいつも奇数個）", rule: "きまり（自分の言葉で。理由も書けたら書く）"}[b.dataset.new], "", null)));
+  const unsel = el.querySelector("#c-unsel"); if (unsel) unsel.addEventListener("click", () => { ui.selected = null; renderCards(); });
+  el.querySelectorAll("[data-op]").forEach(b => b.addEventListener("click", () => {
+    const c = cardById(b.dataset.id), op = b.dataset.op;
+    if (op === "select") { ui.selected = ui.selected === c.id ? null : c.id; renderCards(); }
+    else if (op === "seed") { const box = el.querySelector(`#seeds-${c.id}`); box.innerHTML = SEEDS.map(([nm], i) => `<button data-seed="${i}">${nm}</button>`).join(""); box.querySelectorAll("button").forEach(sb => sb.addEventListener("click", () => { const [nm, fn] = SEEDS[+sb.dataset.seed]; const text = prompt(`問いの種「${nm}」：自分の言葉で問いにする`, fn(c)); if (text && text.trim()) { const q = addCard({type: "q", text: text.trim(), parent: c.id}); ui.selected = q.id; renderCards(); aiReactToCard(q); } })); }
+    else if (op === "retest") openTestWith(c.params);
+    else if (op === "edit") { const t = prompt("書き直す", c.text); if (t !== null && t.trim()) { c.text = t.trim(); saveState(); renderCards(); } }
+    else if (op === "note") { const t = prompt("わけ・メモ（なぜそうなる？ 何を使った？ どこまで見た？）", c.note || ""); if (t !== null) { c.note = t.trim(); saveState(); renderCards(); } }
+    else if (op === "status") { const t = prompt("状態（例：まだ試していない／100 まで当たり／反例 36 で外れ／わけが言える）", c.status || ""); if (t !== null) { c.status = t.trim(); saveState(); renderCards(); } }
+    else if (op === "book") { const opts = Object.entries(BOOK).map(([k, v], i) => `${i + 1}: ${v}`).join("\n"); const t = prompt("教科書の地図では、これに近いのはどれ？（番号。0 でなし）\n" + opts, c.book ? String(Object.keys(BOOK).indexOf(c.book) + 1) : "0"); if (t !== null) { const i = +t; c.book = i >= 1 && i <= 14 ? Object.keys(BOOK)[i - 1] : null; saveState(); renderCards(); renderBook(); if (c.book) aiSay(`「${c.text}」を教科書の「${BOOK[c.book]}」と結びつけた。きみの言葉と教科書の言葉、どこが同じでどこがちがう？`); } }
+    else if (op === "del") { if (confirm("このカードを消す？（下につながるカードは残る）")) { state.cards = state.cards.filter(x => x.id !== c.id); state.cards.forEach(x => { if (x.parent === c.id) x.parent = c.parent; }); if (ui.selected === c.id) ui.selected = null; saveState(); renderCards(); } }
+  }));
+  el.querySelector("#c-export").addEventListener("click", () => { const blob = new Blob([JSON.stringify(state, null, 1)], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "my_playground.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
+  el.querySelector("#c-import").addEventListener("change", ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(t => { const s = JSON.parse(t); if (!s.cards) throw 0; state = s; saveState(); renderCards(); renderBook(); toast("読み込みました"); }).catch(() => toast("読み込めませんでした")); });
+}
+
+// 教科書の地図：隠してある。子どもが自分のカードを「たぶんこれ」と結びつけたときだけ、そこに名前が見える
+function renderBook() {
+  const el = $("#panel-book");
+  el.innerHTML = `<h2>教科書の地図（あとで見る）</h2><p class="muted">大人が先に用意した言葉の一覧。きみの気づきやきまりが、教科書ではどう呼ばれているかを、あとから結びつけるためのもの。結びつけるのはきみ（カードの「教科書では？」）。</p>
+    <ul style="padding-left:18px">${Object.entries(BOOK).map(([k, v]) => { const cs = state.cards.filter(c => c.book === k); return `<li>${cs.length ? `<b>${esc(v)}</b> ← ${cs.map(c => `「${esc(c.text)}」`).join("、")}` : `<span class="muted">${esc(v)}</span>`}</li>`; }).join("")}</ul>
+    <p class="muted">結びついていない言葉があっても、急がなくていい。遊んでいるうちに、向こうからやってくることがある。</p>`;
+}
+
+// =====================================================================
+// そばにいる AI：答えを言わない。当たり外れを判定しない。「どうやって見つけた？」と、問いの種を差し出す
+// =====================================================================
+const chat = [];
+function aiSay(text, html) { chat.push({who: "ai", text, html}); renderChat(); }
+function meSay(text) { chat.push({who: "me", text}); renderChat(); }
+function renderChat() { const log = $("#chatlog"); log.innerHTML = chat.map(m => `<div class="msg ${m.who}"><div><div class="who">${m.who === "ai" ? "AI" : esc(state.name)}</div><div class="bubble">${m.html ? m.html : esc(m.text)}</div></div></div>`).join(""); log.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => onAct(b))); log.scrollTop = log.scrollHeight; }
+function seedButtons(c) { return `<div class="seeds">${SEEDS.map(([nm], i) => `<button data-act="seed" data-id="${c.id}" data-i="${i}">${nm}</button>`).join("")}</div>`; }
+function aiReactToCard(c) {
+  let text;
+  if (c.type === "notice") text = pick([`面白い。それ、どうやって見つけた？`, `へえ。ほかの数でも同じだった？ どこまで見た？`, `それ、予想の形にしたらどうなる？（「〜の数は、いつも〜」）`]);
+  else if (c.type === "q") text = pick([`いい問い。どうやって調べる？ 手で数える？ 機械（予想を試す機械）にやらせる？`, `その問いに、いま自分ならどう答える？ 予想を先に書いてから試すと、外れたときに何が分かるか見える。`]);
+  else if (c.type === "guess") text = c.status.startsWith("外れ") ? `外れた！ 外れた予想は宝物。反例のどこが、予想とずれていた？ 条件を足して直す？（例：「偶数」を「4 より大きい偶数」に）` : c.status.startsWith("当たり") ? `${c.status}。その先はどう思う？ 反例が出ないだけで「いつでも」と言える？ わけは思いつく？` : `試してみる？ いくつまで？ 外れるとしたらどんな数だと思う？`;
+  else text = `きまりを書いた。そのきまりは、何を使って言える？ 使ったことが「まだ確かめていないこと」なら、それは借り物。メモに書いておくと、あとで自分が助かる。`;
+  aiSay("", esc(text) + seedButtons(c));
+  if (settings.llm && settings.apiKey) llmReact(`（新しいカード：${TYPES[c.type]}「${c.text}」${c.status ? "、状態：" + c.status : ""}）`);
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function onAct(b) {
+  if (b.dataset.act === "seed") { const c = cardById(b.dataset.id), [nm, fn] = SEEDS[+b.dataset.i]; const text = prompt(`問いの種「${nm}」：自分の言葉で問いにする`, fn(c)); if (text && text.trim()) { const q = addCard({type: "q", text: text.trim(), parent: c.id}); ui.selected = q.id; renderCards(); aiReactToCard(q); } }
+  if (b.dataset.act === "test") { const p = JSON.parse(b.dataset.p); openTestWith(p); }
+  if (b.dataset.act === "addq") { const q = addCard({type: "q", text: b.dataset.text, parent: ui.selected}); ui.selected = q.id; renderCards(); showTab("cards"); }
+}
+function ruleAI(text) {
+  const t = text;
+  if (/なぜ|どうして|理由/.test(t)) return `私は答えを言わない（言ったら、きみの発見が私の発見になってしまう）。代わりに：その「なぜ」を小さく分けられる？ たとえば、いちばん小さい例で何が起きているかを見る、とか。`;
+  if (/ヒント|わからない|分からない|何をすれば/.test(t)) return `何をいじってもいい。困ったら：数の表で 2, 3, 5, 7 の倍数を消してみる／同じ数で木を 2 本作って葉をくらべる／約数の棒グラフで高い棒と低い棒の数を見る／レースで m を変える。そこで「あれ？」と思ったら、それをカードに。`;
+  if (/正しい|合ってる|あってる|当たり|正解/.test(t)) return `当たりかどうかを決めるのは私じゃなくて、数のほう。「予想を試す機械」で N まで試すと、反例があれば出る。反例が出なかったら「N まで当たり」——その先は別の話。`;
+  const m = t.match(/(\d+)\s*まで/); 
+  if (/試|ため|調べ|数え/.test(t)) return `予想を試す機械で組み立ててみる？ 「A の数は、全部 B？」の形にすると、機械が反例を探せる。形にならないなら、自由実験ノート（Python）で自分で数える手もある。`;
+  if (/平方数|約数|素数|余り|倍数|世界|レース|木/.test(t)) return `それ、カードにしておく？（気づき／予想／問い）。それから「問いの種」を押すと、次の問いが出てくる。何を試したか、どこまで見たかも書いておくと、あとで自分が助かる。`;
+  return `聞いてる。いま、どのおもちゃをいじってる？ 何か「あれ？」はあった？ あったら気づきカードに。なければ、数の表で好きな数を消していくのが一番早い。`;
+}
+async function llmReact(text) {
+  const sys = `あなたは子どもの「数の遊び場」にいる遊び相手です。子どもは数をいじって、気づき・問い・予想・きまりのカードを自分の言葉で作ります。
+守ること：答えを言わない。予想が正しいかどうかを言わない（数が決める）。教科書の言葉を先に出さない。急かさない。短く、やさしい日本語で、問いは 1 回に 1 つか 2 つ。
+やること：どうやって見つけたかを聞く。どこまで見たかを聞く。外れた予想をほめる（外れは次の問いの入口）。予想を「A の数は、全部 B？」の形にするのを手伝う。次の問いの種（もっと先／はしっこ／変えてみる／逆は？／なぜ？／反例さがし／似た形）をひとつ差し出す。
+返事は必ず JSON だけ：{"reply":"…","proposals":[{"type":"q","text":"子どもが使える問いの文"} | {"type":"test","form":"all","A":{"id":"<pred id>","args":{}},"B":{"id":"<pred id>","args":{}},"N":1000}]}（proposals は空でもよい）
+pred id：${PREDS.map(p => p.id + "=" + p.name).join(", ")}`;
+  const ctx = JSON.stringify({name: state.name, cards: state.cards.slice(-12).map(c => ({種類: TYPES[c.type], 文: c.text, 状態: c.status, メモ: c.note}))});
+  const history = chat.filter(m => m.text).slice(-8).map(m => ({role: m.who === "ai" ? "assistant" : "user", content: m.text}));
+  const messages = [{role: "user", content: "いまのカード：\n" + ctx}, {role: "assistant", content: "{\"reply\":\"見てるよ。\",\"proposals\":[]}"}, ...history, {role: "user", content: text}];
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {"content-type": "application/json", "x-api-key": settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"}, body: JSON.stringify({model: settings.model, max_tokens: 600, system: sys, messages})});
+    if (!r.ok) throw new Error("API " + r.status);
+    const data = await r.json(); const raw = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
+    let obj; try { obj = JSON.parse(raw.replace(/^```(json)?|```$/g, "").trim()); } catch (e) { obj = {reply: raw, proposals: []}; }
+    const html = esc(obj.reply || "") + (obj.proposals || []).map(p => p.type === "q" ? `<div class="seeds"><button data-act="addq" data-text="${esc(p.text)}">問いにする：${esc(p.text)}</button></div>` : p.type === "test" && predById(p.A && p.A.id) && predById(p.B && p.B.id) ? `<div class="seeds"><button data-act="test" data-p='${esc(JSON.stringify({form: p.form || "all", A: p.A, B: p.B, N: p.N || 1000}))}'>機械で試す：${esc(predName(p.A.id, p.A.args || {}))} → ${esc(predName(p.B.id, p.B.args || {}))}</button></div>` : "").join("");
+    aiSay(obj.reply || "", html);
+  } catch (e) { aiSay(`（生成 AI につながらなかった：${e.message}）`); }
+}
+async function onChat(text) { meSay(text); if (settings.llm && settings.apiKey) { await llmReact(text); return; } aiSay(ruleAI(text)); }
+
+// =====================================================================
+// 設定・起動
+// =====================================================================
+function renderSettings() {
+  const el = $("#panel-set");
+  el.innerHTML = `<h2>設定</h2><div>名前</div><input type="text" id="s-name" value="${esc(state.name)}" style="width:100%">
+    <h3>そばにいる AI</h3><div class="muted">既定は規則で返す遊び相手（通信なし）。生成 AI を使うと、自分の API キーをこのブラウザにだけ保存する。どちらも答えは言わない。</div>
+    <div class="row"><label><input type="checkbox" id="s-llm" ${settings.llm ? "checked" : ""}> 生成 AI（Anthropic API）を使う</label></div>
+    <div>API キー</div><input type="password" id="s-key" value="${esc(settings.apiKey)}" style="width:100%"><div>モデル</div><input type="text" id="s-model" value="${esc(settings.model)}" style="width:100%">
+    <h3>Python で自分で数える</h3><div class="muted">おもちゃにない実験は、自由実験ノート（JupyterLite）で。</div>
+    <div class="row"><a href="${esc((settings.liteBase.endsWith("/") ? settings.liteBase : settings.liteBase + "/") + "notebooks/index.html?path=experiments/00_scratch.ipynb")}" target="_blank" rel="noopener"><button class="small">自由実験ノートを開く</button></a></div>
+    <div class="row"><button class="primary" id="s-save">保存</button><button class="quiet" id="s-reset">地図を白紙にする</button></div>`;
+  el.querySelector("#s-save").addEventListener("click", () => { state.name = el.querySelector("#s-name").value.trim() || state.name; settings.llm = el.querySelector("#s-llm").checked; settings.apiKey = el.querySelector("#s-key").value.trim(); settings.model = el.querySelector("#s-model").value.trim() || "claude-sonnet-4-6"; saveSettings(); saveState(); renderCards(); toast("保存しました"); });
+  el.querySelector("#s-reset").addEventListener("click", () => { if (confirm("カードを全部消して白紙にする？（JSON に書き出してからがおすすめ）")) { state = newState(state.name); ui.selected = null; saveState(); renderCards(); renderBook(); } });
+}
+function showToy(t) { ui.toy = t; document.querySelectorAll(".toys button").forEach(b => b.classList.toggle("active", b.dataset.toy === t)); document.querySelectorAll(".toy").forEach(p => p.classList.toggle("active", p.id === "toy-" + t)); }
+function showTab(t) { ui.tab = t; document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t)); document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + t)); }
+function init() {
+  settings = loadSettings(); state = loadState();
+  const fresh = !state;
+  if (fresh) { const name = prompt("きみの名前（地図につけます）", "わたし") || "わたし"; state = newState(name.trim() || "わたし"); saveState(); }
+  renderGrid(); renderTree(); renderDiv(); renderRace(); renderWorld(); renderTest(); renderCards(); renderBook(); renderSettings();
+  document.querySelectorAll(".toys button").forEach(b => b.addEventListener("click", () => showToy(b.dataset.toy)));
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { showTab(b.dataset.tab); if (b.dataset.tab === "book") renderBook(); }));
+  $("#chatform").addEventListener("submit", ev => { ev.preventDefault(); const t = $("#chatin").value.trim(); if (!t) return; $("#chatin").value = ""; onChat(t); });
+  $("#btn-help").addEventListener("click", () => { showTab("ai"); aiSay("ここには課題がない。左のおもちゃを好きにいじる。\n「あれ？」と思ったら、それを右の地図にカードとして書く（自分の言葉で）。\n予想ができたら「予想を試す機械」で試す。外れたら、それも書く。外れは宝物。\n一枚のカードから「問いの種」で次の問いを作ると、地図が枝分かれして育つ。\n教科書の言葉は隠してある。あとで「これ、たぶん教科書のあれ」と自分で結びつける。\n私は答えを言わない。聞くだけ。"); });
+  aiSay(fresh ? `${state.name}さん、こんにちは。ここには課題も順番もない。左のおもちゃをいじって、「あれ？」と思ったことを右に書いていくと、きみの地図が育つ。まず、数の表で好きな数を消してみる？` : `おかえりなさい。カードは ${state.cards.length} 枚。続きから。`);
+}
+if (typeof window !== "undefined" && typeof document !== "undefined") { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init(); }
+</script>
+</body>
+</html>
