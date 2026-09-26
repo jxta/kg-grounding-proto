@@ -83,6 +83,37 @@
   #chatform input { flex:1; }
   .toast { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
   .toast.show { opacity:1; }
+
+  nav.views { display:flex; gap:2px; }
+  nav.views button { border:0; border-radius:6px; padding:5px 10px; background:transparent; color:var(--ink2); }
+  nav.views button.active { background:var(--ink); color:#fff; }
+  main.entrance { grid-template-columns: 1fr; }
+  main.entrance aside { display:none; }
+  main.entrance #left { border-right:0; }
+  .view { display:none; flex:1; min-height:0; flex-direction:column; }
+  .view.active { display:flex; }
+  #view-toys .toy { flex:1; }
+  .door-stage { flex:1; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:24px 16px 40px; }
+  .door-pic { width:min(92vw, 720px); }
+  .door-pic svg { width:100%; height:auto; display:block; background:#fff; }
+  .door-under { width:min(92vw, 720px); margin-top:10px; }
+  .door-nav { display:flex; align-items:center; gap:10px; justify-content:center; margin:4px 0 10px; }
+  .dots span { display:inline-block; width:7px; height:7px; border-radius:50%; border:1px solid var(--ink); margin:0 3px; }
+  .dots span.on { background:var(--ink); }
+  .door-ask { text-align:center; font-size:15px; letter-spacing:.06em; color:var(--ink2); margin:8px 0 12px; }
+  .door-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .door-controls { margin-top:12px; display:none; }
+  .door-controls.show { display:block; }
+  .impulse { margin-top:14px; display:none; border-top:1px solid var(--line2); padding-top:12px; }
+  .impulse.show { display:block; }
+  .impulse .big { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
+  .impulse .big button { padding:10px 16px; font-size:15px; }
+  .studio, .mine { padding:14px 16px; overflow:auto; flex:1; }
+  .studio svg, .mine svg { width:100%; max-width:720px; height:auto; display:block; background:#fff; }
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+  .gallery .item { border:1px solid var(--line2); border-radius:8px; padding:8px; }
+  .gallery .item svg { width:100%; height:auto; }
+  .gallery .item .t { font-weight:600; margin:4px 0; }
   @media (max-width: 900px) { main { grid-template-columns:1fr; grid-template-rows:auto auto; height:auto; } #left { border-right:0; border-bottom:1px solid var(--line); } }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { --ink:#eee; --ink2:#ccc; --ink3:#999; --line:#555; --line2:#3a3a3a; --paper:#151515; --paper2:#222; }
@@ -96,12 +127,36 @@
 </head>
 <body>
 <header>
-  <h1>数の遊び場</h1><span class="sub">いじる → 気づく → 予想する → 試す → また問う</span>
+  <h1>数の遊び場</h1><span class="sub" id="subline">分からないのに、目が離せない</span>
   <span class="spacer"></span>
-  <button class="quiet" id="btn-help">使い方</button>
+  <nav class="views">
+    <button data-view="door" class="active">入口</button>
+    <button data-view="toys">おもちゃ</button>
+    <button data-view="studio">作る</button>
+    <button data-view="mine">わたしの絵</button>
+  </nav>
+  <button class="quiet small" id="btn-side">地図・AI</button>
+  <button class="quiet small" id="btn-help">使い方</button>
 </header>
-<main>
+<main class="entrance">
   <section id="left">
+    <div class="view active" id="view-door">
+      <div class="door-stage">
+        <div class="door-pic" id="door-pic"></div>
+        <div class="door-under">
+          <div class="door-nav"><button class="quiet small" id="door-prev">←</button><span class="dots" id="door-dots"></span><button class="quiet small" id="door-next">→</button></div>
+          <div class="door-ask" id="door-ask">何が見える？</div>
+          <div class="door-actions" id="door-actions">
+            <button class="small" id="door-tinker">いじる</button>
+            <button class="primary small" id="door-gotit">分かったかも</button>
+            <button class="quiet small" id="door-note">気づいたことを書く</button>
+          </div>
+          <div class="door-controls" id="door-controls"></div>
+          <div class="impulse" id="impulse"></div>
+        </div>
+      </div>
+    </div>
+    <div class="view" id="view-toys">
     <div class="toys">
       <button data-toy="grid" class="active">数の表</button>
       <button data-toy="tree">分ける</button>
@@ -116,8 +171,11 @@
     <div class="toy" id="toy-race"></div>
     <div class="toy" id="toy-world"></div>
     <div class="toy" id="toy-test"></div>
+    </div>
+    <div class="view" id="view-studio"></div>
+    <div class="view" id="view-mine"></div>
   </section>
-  <aside>
+<aside>
     <div class="tabs">
       <button data-tab="cards" class="active">わたしの地図</button>
       <button data-tab="ai">AI</button>
@@ -204,9 +262,9 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const now = () => { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const TYPES = {q: "問い", notice: "気づき", guess: "予想", rule: "きまり"};
-let state, settings, ui = {toy: "grid", tab: "cards", selected: null};
+let state, settings, ui = {toy: "grid", tab: "cards", selected: null, view: "door"};
 
-function newState(name) { return {name, created: now(), cards: [], log: []}; }
+function newState(name) { return {name, created: now(), cards: [], log: [], pictures: []}; }
 function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) return s; } catch (e) {} return null; }
 function saveState() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 function loadSettings() { const d = {llm: false, apiKey: "", model: "claude-sonnet-4-6", liteBase: "../"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
@@ -475,7 +533,7 @@ function renderCards() {
   const one = c => `<div class="card ${c.type === "q" ? "q" : c.type === "rule" ? "rule" : ""}${ui.selected === c.id ? " sel" : ""}" data-id="${c.id}" style="${ui.selected === c.id ? "box-shadow:0 0 0 2px #111 inset" : ""}">
       <div class="head"><span class="type">${TYPES[c.type]}</span>${c.status ? `<span class="st ${c.status.startsWith("当たり") ? "hit" : c.status.startsWith("外れ") ? "miss" : ""}">${esc(c.status)}</span>` : ""}<span class="muted">${esc(c.t)}</span></div>
       <div class="txt">${esc(c.text)}</div>${c.note ? `<div class="muted">わけ・メモ：${esc(c.note)}</div>` : ""}${c.book ? `<div class="book">教科書ではたぶん「${esc(BOOK[c.book])}」</div>` : ""}
-      <div class="ops"><button data-op="select" data-id="${c.id}">${ui.selected === c.id ? "選択中" : "ここから続ける"}</button><button data-op="seed" data-id="${c.id}">問いの種</button>${c.params && c.params.toy === "test" ? `<button data-op="retest" data-id="${c.id}">試し直す</button>` : ""}<button data-op="edit" data-id="${c.id}">書き直す</button><button data-op="note" data-id="${c.id}">わけ・メモ</button><button data-op="status" data-id="${c.id}">状態</button><button data-op="book" data-id="${c.id}">教科書では？</button><button data-op="del" data-id="${c.id}" class="quiet">消す</button></div>
+      <div class="ops"><button data-op="select" data-id="${c.id}">${ui.selected === c.id ? "選択中" : "ここから続ける"}</button><button data-op="seed" data-id="${c.id}">問いの種</button>${c.params && c.params.toy === "test" ? `<button data-op="retest" data-id="${c.id}">試し直す</button>` : ""}${c.params && (c.params.door || c.params.studio) ? `<button data-op="pic" data-id="${c.id}">絵を出す</button>` : ""}<button data-op="edit" data-id="${c.id}">書き直す</button><button data-op="note" data-id="${c.id}">わけ・メモ</button><button data-op="status" data-id="${c.id}">状態</button><button data-op="book" data-id="${c.id}">教科書では？</button><button data-op="del" data-id="${c.id}" class="quiet">消す</button></div>
       <div class="seeds" id="seeds-${c.id}"></div></div>` + (kids(c.id).length ? `<div class="kids">${kids(c.id).map(one).join("")}</div>` : "");
   const roots = cards.filter(c => !c.parent || !cardById(c.parent));
   el.innerHTML = `<h2>${esc(state.name)}の地図 <span class="muted">${cards.length ? "" : "（まだ何もない。それでいい）"}</span></h2>
@@ -490,6 +548,7 @@ function renderCards() {
     if (op === "select") { ui.selected = ui.selected === c.id ? null : c.id; renderCards(); }
     else if (op === "seed") { const box = el.querySelector(`#seeds-${c.id}`); box.innerHTML = SEEDS.map(([nm], i) => `<button data-seed="${i}">${nm}</button>`).join(""); box.querySelectorAll("button").forEach(sb => sb.addEventListener("click", () => { const [nm, fn] = SEEDS[+sb.dataset.seed]; const text = prompt(`問いの種「${nm}」：自分の言葉で問いにする`, fn(c)); if (text && text.trim()) { const q = addCard({type: "q", text: text.trim(), parent: c.id}); ui.selected = q.id; renderCards(); aiReactToCard(q); } })); }
     else if (op === "retest") openTestWith(c.params);
+    else if (op === "pic") { if (c.params.studio) doorState.fromLink = {id: "studio", studio: c.params.studio}; else { const d = DOORS.find(x => x.id === c.params.door); if (d) { doorState.fromLink = null; doorState.i = DOORS.indexOf(d); doorState.params[d.id] = c.params.p || {}; } } showView("door"); renderDoor(); }
     else if (op === "edit") { const t = prompt("書き直す", c.text); if (t !== null && t.trim()) { c.text = t.trim(); saveState(); renderCards(); } }
     else if (op === "note") { const t = prompt("わけ・メモ（なぜそうなる？ 何を使った？ どこまで見た？）", c.note || ""); if (t !== null) { c.note = t.trim(); saveState(); renderCards(); } }
     else if (op === "status") { const t = prompt("状態（例：まだ試していない／100 まで当たり／反例 36 で外れ／わけが言える）", c.status || ""); if (t !== null) { c.status = t.trim(); saveState(); renderCards(); } }
@@ -562,6 +621,190 @@ pred id：${PREDS.map(p => p.id + "=" + p.name).join(", ")}`;
 async function onChat(text) { meSay(text); if (settings.llm && settings.apiKey) { await llmReact(text); return; } aiSay(ruleAI(text)); }
 
 // =====================================================================
+// 入口：魅力的な分からなさ（説明のない絵）。いじると、絵の中の数が動く
+// =====================================================================
+const SVG_NS = "http://www.w3.org/2000/svg";
+function ulamSvg(N, pred, args, size) {
+  // ウラムの渦巻き：1 を中心に外へ。pred が真の数を黒く塗る
+  const side = Math.ceil(Math.sqrt(N)), cell = size / side, half = Math.floor(side / 2);
+  let x = 0, y = 0, dx = 1, dy = 0, step = 1, parts = [], n = 1;
+  const put = (n, x, y) => { if (predTest(pred, args, n)) parts.push(`<rect x="${((x + half) * cell).toFixed(2)}" y="${((half - y) * cell).toFixed(2)}" width="${(cell - 0.4).toFixed(2)}" height="${(cell - 0.4).toFixed(2)}" fill="#111"></rect>`); };
+  put(n, x, y);
+  outer: while (true) {
+    for (let k = 0; k < 2; k++) {
+      for (let i = 0; i < step; i++) { x += dx; y += dy; n++; if (n > N) break outer; put(n, x, y); }
+      [dx, dy] = [-dy, dx];
+    }
+    step++;
+  }
+  return `<svg viewBox="0 0 ${size} ${size}" xmlns="${SVG_NS}"><rect width="${size}" height="${size}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function colsSvg(N, cols, pred, args, cell) {
+  const rows = Math.ceil(N / cols), parts = [];
+  for (let n = 1; n <= N; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, on = predTest(pred, args, n);
+    parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="${cell/8}" fill="${on ? "#111" : "#fff"}" stroke="#ddd" stroke-width=".5"></rect>`);
+    if (cell >= 22) parts.push(`<text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="${Math.round(cell*0.32)}" fill="${on ? "#fff" : "#999"}">${n}</text>`); }
+  return `<svg viewBox="0 0 ${cols*cell} ${rows*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${rows*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function ringsSvg(N, cols, predFill, argsF, predRing, argsR, cell) {
+  const rows = Math.ceil(N / cols), parts = [];
+  for (let n = 1; n <= N; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, f = predTest(predFill, argsF, n), r = predTest(predRing, argsR, n);
+    parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="3" fill="${f ? "#111" : "#fff"}" stroke="#ddd" stroke-width=".5"></rect>`);
+    if (r) parts.push(`<circle cx="${x+cell/2}" cy="${y+cell/2}" r="${cell*0.36}" fill="none" stroke="${f ? "#fff" : "#111"}" stroke-width="2"></circle>`);
+    parts.push(`<text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="11" fill="${f ? "#fff" : "#777"}">${n}</text>`); }
+  return `<svg viewBox="0 0 ${cols*cell} ${rows*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${rows*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function barsSvg(N, fn, W = 720, H = 220) {
+  const bw = W / N, vals = []; let mx = 1; for (let n = 1; n <= N; n++) { const v = fn(n); vals.push(v); mx = Math.max(mx, v); }
+  const parts = vals.map((v, i) => `<rect x="${(i*bw).toFixed(2)}" y="${(H - v / mx * (H - 10)).toFixed(2)}" width="${Math.max(0.6, bw - 1).toFixed(2)}" height="${(v / mx * (H - 10)).toFixed(2)}" fill="#111"></rect>`);
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="${SVG_NS}"><rect width="${W}" height="${H}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function raceSvg(m, a, b, N, W = 720, H = 240) {
+  const s = sieveUpTo(N); let ca = 0, cb = 0, minD = 0, maxD = 0; const pts = [];
+  for (let n = 2; n <= N; n++) { if (s[n]) { if (n % m === a) ca++; else if (n % m === b) cb++; } const d = ca - cb; minD = Math.min(minD, d); maxD = Math.max(maxD, d); if (n % Math.max(1, Math.floor(N / 1400)) === 0 || n === N) pts.push([n, d]); }
+  const sx = x => 10 + x / N * (W - 20), sy = d => 12 + (maxD - d) / Math.max(1, maxD - minD) * (H - 24);
+  const path = pts.map((p, i) => (i ? "L" : "M") + sx(p[0]).toFixed(1) + "," + sy(p[1]).toFixed(1)).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="${SVG_NS}"><rect width="${W}" height="${H}" fill="#fff"></rect><line x1="10" y1="${sy(0).toFixed(1)}" x2="${W-10}" y2="${sy(0).toFixed(1)}" stroke="#bbb" stroke-width=".8"></line><path d="${path}" fill="none" stroke="#111" stroke-width="1"></path></svg>`;
+}
+function treePairSvg(a, b, leavesA, leavesB, worldRow) {
+  const tree = (root, kids, ox) => `<rect x="${ox+58}" y="14" width="48" height="24" rx="6" fill="#f4f4f4" stroke="#111" stroke-width=".8"></rect><text x="${ox+82}" y="31" text-anchor="middle" font-size="13" fill="#111">${root}</text>
+    <line x1="${ox+82}" y1="38" x2="${ox+40}" y2="70" stroke="#666"></line><line x1="${ox+82}" y1="38" x2="${ox+124}" y2="70" stroke="#666"></line>
+    <rect x="${ox+16}" y="70" width="48" height="24" rx="6" fill="#111"></rect><text x="${ox+40}" y="87" text-anchor="middle" font-size="13" fill="#fff">${kids[0]}</text>
+    <rect x="${ox+100}" y="70" width="48" height="24" rx="6" fill="#111"></rect><text x="${ox+124}" y="87" text-anchor="middle" font-size="13" fill="#fff">${kids[1]}</text>`;
+  return `<svg viewBox="0 0 420 150" xmlns="${SVG_NS}"><rect width="420" height="150" fill="#fff"></rect>
+    <text x="210" y="128" text-anchor="middle" font-size="11" fill="#777">${worldRow}</text>${tree(a, leavesA, 20)}${tree(b, leavesB, 240)}</svg>`;
+}
+const DOORS = [
+  {id: "ulam", params: {N: 4900, pred: "prime"}, controls: [["N", "number", 100, 10000, "どこまで"], ["pred", "pred", null, null, "黒く塗る数"]],
+   render: p => ulamSvg(p.N, p.pred, {}, 600), toy: () => ({toy: "grid"})},
+  {id: "cols", params: {N: 120, cols: 6, pred: "prime"}, controls: [["cols", "number", 2, 12, "列の数"], ["N", "number", 30, 400, "どこまで"], ["pred", "pred", null, null, "黒く塗る数"]],
+   render: p => colsSvg(p.N, p.cols, p.pred, {}, Math.max(18, Math.min(40, Math.floor(720 / p.cols)))), toy: p => ({toy: "grid"})},
+  {id: "race", params: {m: 4, a: 3, b: 1, N: 30000}, controls: [["N", "number", 1000, 200000, "どこまで"], ["m", "number", 2, 12, "m"]],
+   render: p => raceSvg(p.m, Math.min(p.a, p.m - 1), Math.min(p.b, p.m - 1), p.N), toy: p => ({toy: "race", state: {m: p.m, a: p.a, b: p.b, N: p.N}})},
+  {id: "divbars", params: {N: 120}, controls: [["N", "number", 30, 400, "どこまで"]],
+   render: p => barsSvg(p.N, divisorCount), toy: () => ({toy: "div"})},
+  {id: "sqdiv", params: {N: 100, cols: 10}, controls: [["N", "number", 50, 400, "どこまで"], ["cols", "number", 5, 20, "列の数"]],
+   render: p => colsSvg(p.N, p.cols, "divodd", {}, Math.max(24, Math.min(48, Math.floor(720 / p.cols)))), toy: () => ({toy: "div"})},
+  {id: "twosq", params: {N: 100, cols: 10}, controls: [["N", "number", 50, 400, "どこまで"], ["cols", "number", 5, 20, "列の数"]],
+   render: p => colsSvg(p.N, p.cols, "sq2", {}, Math.max(24, Math.min(48, Math.floor(720 / p.cols)))), toy: () => ({toy: "test", state: {form: "all", A: {id: "prime", args: {}}, B: {id: "sq2", args: {}}, N: 1000}})},
+  {id: "rings", params: {N: 100, m: 3}, controls: [["m", "number", 2, 12, "m"], ["N", "number", 50, 200, "どこまで"]],
+   render: p => ringsSvg(p.N, 10, "multm", {m: p.m}, "dsum", {m: p.m}, 48), toy: p => ({toy: "test", state: {form: "same", A: {id: "multm", args: {m: p.m}}, B: {id: "dsum", args: {m: p.m}}, N: 10000}})},
+  {id: "poly41", params: {N: 60}, controls: [["N", "number", 20, 200, "n はどこまで"]],
+   render: p => { const W = 720, H = 70, w = W / (p.N + 1), parts = []; for (let k = 0; k <= p.N; k++) { const v = k * k + k + 41, on = isPrime(v); parts.push(`<rect x="${(k*w).toFixed(2)}" y="10" width="${Math.max(0.6, w - 1).toFixed(2)}" height="40" fill="${on ? "#111" : "#fff"}" stroke="#ccc" stroke-width=".5"></rect>`); if (p.N <= 60) parts.push(`<text x="${(k*w + w/2).toFixed(2)}" y="63" text-anchor="middle" font-size="8" fill="#999">${k}</text>`); } return `<svg viewBox="0 0 ${W} ${H}" xmlns="${SVG_NS}"><rect width="${W}" height="${H}" fill="#fff"></rect>${parts.join("")}</svg>`; },
+   toy: () => ({toy: "test", state: {form: "all", A: {id: "poly", args: {}}, B: {id: "prime", args: {}}, N: 5000}})},
+  {id: "world36", params: {n: 36}, controls: [["n", "number", 4, 400, "数"]],
+   render: p => { const fs = worldFactorizations(p.n, 2, 0); const pair = fs.length >= 2 ? [fs[0].split("×").map(Number), fs[1].split("×").map(Number)] : null; const wr = worldNums(2, 0, 30).join("  ") + "  …"; return pair ? treePairSvg(p.n, p.n, pair[0], pair[1], wr) : `<svg viewBox="0 0 420 150" xmlns="${SVG_NS}"><rect width="420" height="150" fill="#fff"></rect><text x="210" y="70" text-anchor="middle" font-size="14" fill="#111">${p.n} は、この世界では ${fs.length ? "1 通りにしか分かれない" : "「素数」"}</text><text x="210" y="128" text-anchor="middle" font-size="12" fill="#777" letter-spacing="2">${wr}</text></svg>`; },
+   toy: p => ({toy: "world", state: {m: 2, r: 0, N: 600, n: p.n}})},
+];
+const doorState = {i: 0, params: {}, tinker: false, fromLink: null};
+const doorParams = d => Object.assign({}, d.params, doorState.params[d.id] || {});
+function currentDoor() { return doorState.fromLink || DOORS[doorState.i]; }
+function renderDoor() {
+  const d = currentDoor(), p = doorParams(d);
+  $("#door-pic").innerHTML = d.studio ? renderStudioPicture(d.studio) : d.render(p);
+  $("#door-dots").innerHTML = doorState.fromLink ? '<span class="on"></span>' : DOORS.map((_, i) => `<span class="${i === doorState.i ? "on" : ""}"></span>`).join("");
+  $("#door-ask").textContent = doorState.fromLink ? (doorState.fromLink.mine ? "わたしの絵。何が見える？" : "だれかからの絵。何が見える？") : "何が見える？";
+  const ctl = $("#door-controls");
+  if (d.controls && !d.studio) {
+    ctl.innerHTML = `<div class="row" style="justify-content:center">${d.controls.map(([k, type, mn, mx, label]) => type === "pred" ? `<label>${label} <select data-k="${k}">${PREDS.map(x => `<option value="${x.id}" ${x.id === p[k] ? "selected" : ""}>${x.name.replace(/\{(\w+)\}/g, "…")}</option>`).join("")}</select></label>` : `<label>${label} <input type="number" data-k="${k}" value="${p[k]}" min="${mn}" max="${mx}"></label>`).join("")}<button class="small" id="door-apply">変える</button><button class="small quiet" id="door-open-toy">おもちゃで続ける</button></div>`;
+    ctl.querySelector("#door-apply").addEventListener("click", () => { const np = Object.assign({}, p); ctl.querySelectorAll("[data-k]").forEach(i => { const v = i.tagName === "SELECT" ? i.value : Math.max(+i.min, Math.min(+i.max, +i.value || +i.min)); np[i.dataset.k] = v; }); doorState.params[d.id] = np; renderDoor(); });
+    ctl.querySelector("#door-open-toy").addEventListener("click", () => { const t = d.toy ? d.toy(p) : null; if (!t) return; if (t.state) { if (t.toy === "race") Object.assign(raceState, t.state), renderRace(); if (t.toy === "world") Object.assign(worldState, t.state), renderWorld(); if (t.toy === "test") Object.assign(testState, t.state), renderTest(); } showView("toys"); showToy(t.toy); });
+  } else ctl.innerHTML = "";
+  ctl.classList.toggle("show", doorState.tinker);
+  $("#impulse").classList.remove("show");
+}
+function doorTitle() { const d = currentDoor(); return d.studio ? (d.studio.name || "わたしの絵") : {ulam: "渦巻きの線", cols: "列に並ぶ黒", race: "線はどこへ", divbars: "とび出す棒", sqdiv: "斜めに並ぶ", twosq: "塗られない数", rings: "丸と黒", poly41: "急に白くなる", world36: "同じ数、ちがう葉"}[d.id]; }
+// 分かったかも → 衝動：試す・作る・見せる・書く
+function showImpulse() {
+  const box = $("#impulse"), d = currentDoor();
+  box.innerHTML = `<div class="door-ask">分かったかも。いま、何がしたい？</div>
+    <textarea id="imp-text" placeholder="何が見えた？（書かなくてもいい。書くなら自分の言葉で）"></textarea>
+    <div class="big"><button id="imp-tinker">もっと試す</button><button id="imp-make">自分で作る</button><button id="imp-show">誰かに見せる</button><button class="quiet" id="imp-card">地図に書く</button></div>
+    <div class="row" id="imp-share" style="justify-content:center"></div>`;
+  box.classList.add("show");
+  box.querySelector("#imp-tinker").addEventListener("click", () => { doorState.tinker = true; $("#door-controls").classList.add("show"); const t = d.toy ? d.toy(doorParams(d)) : null; if (d.studio || !t) return; });
+  box.querySelector("#imp-make").addEventListener("click", () => { showView("studio"); renderStudio(d.studio ? d.studio : studioFromDoor(d)); });
+  box.querySelector("#imp-show").addEventListener("click", () => { const sh = box.querySelector("#imp-share"); sh.innerHTML = `<button class="small" id="sh-png">絵を保存（PNG）</button><button class="small" id="sh-link">絵のリンクをコピー（説明なしで渡せる）</button>`; sh.querySelector("#sh-png").addEventListener("click", () => svgToPng($("#door-pic svg"), doorTitle())); sh.querySelector("#sh-link").addEventListener("click", () => copyLink(d)); });
+  box.querySelector("#imp-card").addEventListener("click", () => { const text = box.querySelector("#imp-text").value.trim() || prompt("何が見えた？（自分の言葉で）", ""); if (!text) return; const c = addCard({type: "notice", text, params: {door: d.studio ? null : d.id, studio: d.studio || null, p: doorParams(d)}, parent: ui.selected}); showSide(true); showTab("cards"); aiSay(`「${text}」——どうやって気づいた？ それ、誰かに絵だけ見せて、同じことに気づくか試してみる？`); });
+  const t = box.querySelector("#imp-text"); t.addEventListener("change", () => { if (t.value.trim()) state.log.push({t: now(), what: "gotit", door: d.id || "studio", text: t.value.trim()}); saveState(); });
+}
+function studioFromDoor(d) {
+  const p = doorParams(d);
+  if (d.id === "ulam") return {canvas: "spiral", N: p.N, A: {id: p.pred, args: {}}, B: null};
+  if (d.id === "cols") return {canvas: "grid", N: p.N, cols: p.cols, A: {id: p.pred, args: {}}, B: null};
+  if (d.id === "sqdiv") return {canvas: "grid", N: p.N, cols: p.cols, A: {id: "divodd", args: {}}, B: null};
+  if (d.id === "twosq") return {canvas: "grid", N: p.N, cols: p.cols, A: {id: "sq2", args: {}}, B: null};
+  if (d.id === "rings") return {canvas: "grid", N: p.N, cols: 10, A: {id: "multm", args: {m: p.m}}, B: {id: "dsum", args: {m: p.m}}};
+  if (d.id === "poly41") return {canvas: "grid", N: 100, cols: 10, A: {id: "poly", args: {}}, B: {id: "prime", args: {}}};
+  return {canvas: "grid", N: 100, cols: 10, A: {id: "prime", args: {}}, B: null};
+}
+// 絵をリンクにする（サーバなし：URL の # に絵の作り方を入れる）。受け取った人には絵だけが見える
+const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))));
+function copyLink(d) {
+  const payload = d.studio ? {studio: d.studio} : {door: d.id, p: doorParams(d)};
+  const url = location.href.split("#")[0] + "#p=" + b64u(JSON.stringify(payload));
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast("リンクをコピーしました。絵だけが渡ります")).catch(() => prompt("このリンクを渡す（絵だけが見える）", url));
+}
+function openFromHash() {
+  const m = location.hash.match(/^#p=(.+)$/); if (!m) return false;
+  try { const obj = JSON.parse(unb64u(m[1])); if (obj.door) { const d = DOORS.find(x => x.id === obj.door); if (!d) return false; doorState.fromLink = Object.assign({}, d); doorState.params[d.id] = obj.p || {}; } else if (obj.studio) { doorState.fromLink = {id: "studio", studio: obj.studio}; } else return false; return true; } catch (e) { return false; }
+}
+function svgToPng(svg, name) {
+  if (!svg) return;
+  const clone = svg.cloneNode(true), vb = svg.viewBox.baseVal, W = vb.width || 720, H = vb.height || 480, scale = Math.max(1, Math.min(4, Math.round(1600 / W)));
+  clone.setAttribute("width", W); clone.setAttribute("height", H);
+  const xml = new XMLSerializer().serializeToString(clone), url = URL.createObjectURL(new Blob([xml], {type: "image/svg+xml;charset=utf-8"}));
+  const img = new Image();
+  img.onload = () => { const c = document.createElement("canvas"); c.width = W * scale; c.height = H * scale; const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    c.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = (name || "picture") + ".png"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }, "image/png"); };
+  img.onerror = () => toast("PNG にできませんでした");
+  img.src = url;
+}
+
+// =====================================================================
+// 作る：自分の「分からなさ」を作って、誰かに渡す
+// =====================================================================
+const studioState = {canvas: "grid", N: 100, cols: 10, A: {id: "prime", args: {}}, B: null, name: ""};
+function renderStudioPicture(st) {
+  const A = st.A, B = st.B;
+  if (st.canvas === "spiral") return ulamSvg(st.N, A.id, A.args || {}, 600);
+  if (st.canvas === "bars") return barsSvg(st.N, n => predTest(A.id, A.args || {}, n) ? divisorCount(n) : 0);
+  const cell = Math.max(18, Math.min(48, Math.floor(720 / st.cols)));
+  return B ? ringsSvg(st.N, st.cols, A.id, A.args || {}, B.id, B.args || {}, Math.max(36, cell)) : colsSvg(st.N, st.cols, A.id, A.args || {}, cell);
+}
+function renderStudio(init) {
+  if (init) Object.assign(studioState, JSON.parse(JSON.stringify(init)));
+  const el = $("#view-studio"), st = studioState;
+  const predSel = (name, sel) => `<select data-s="${name}">${(name === "B" ? '<option value="">（なし）</option>' : "") + PREDS.map(x => `<option value="${x.id}" ${sel && x.id === sel.id ? "selected" : ""}>${x.name.replace(/\{(\w+)\}/g, "…")}</option>`).join("")}</select>` + (sel ? (predById(sel.id).args || []).map(([k, d]) => `<label> ${k} <input type="number" data-s="${name}" data-k="${k}" value="${sel.args?.[k] ?? d}" style="width:60px"></label>`).join("") : "");
+  el.innerHTML = `<div class="studio"><div class="row"><label>形 <select id="st-canvas"><option value="grid" ${st.canvas==="grid"?"selected":""}>表</option><option value="spiral" ${st.canvas==="spiral"?"selected":""}>渦巻き</option><option value="bars" ${st.canvas==="bars"?"selected":""}>棒（約数の個数）</option></select></label>
+      <label>どこまで <input type="number" id="st-N" value="${st.N}" min="20" max="${st.canvas === "spiral" ? 10000 : 400}"></label>${st.canvas === "grid" ? `<label>列 <input type="number" id="st-cols" value="${st.cols}" min="2" max="20"></label>` : ""}</div>
+    <div class="row">黒く塗る：${predSel("A", st.A)}</div>
+    ${st.canvas === "grid" ? `<div class="row">丸をつける：${predSel("B", st.B)}</div>` : ""}
+    <div class="row"><button class="primary small" id="st-draw">描く</button><button class="small" id="st-save">わたしの絵に入れる</button><button class="small" id="st-png">PNG</button><button class="small" id="st-link">リンク</button><span class="muted">説明はつけない。見た人が「何が見える？」から始められるように</span></div>
+    <div id="st-pic">${renderStudioPicture(st)}</div></div>`;
+  const read = () => { st.canvas = el.querySelector("#st-canvas").value; st.N = Math.max(20, +el.querySelector("#st-N").value || 100); const c = el.querySelector("#st-cols"); if (c) st.cols = Math.max(2, Math.min(20, +c.value || 10));
+    const rd = name => { const sel = el.querySelector(`select[data-s=${name}]`); if (!sel || !sel.value) return null; const args = {}; el.querySelectorAll(`input[data-s=${name}]`).forEach(i => args[i.dataset.k] = +i.value); const p = predById(sel.value); for (const [k, d] of (p.args || [])) if (args[k] == null) args[k] = d; return {id: sel.value, args}; };
+    st.A = rd("A") || {id: "prime", args: {}}; st.B = st.canvas === "grid" ? rd("B") : null; };
+  el.querySelector("#st-canvas").addEventListener("change", () => { read(); renderStudio(); });
+  el.querySelectorAll("select[data-s]").forEach(sl => sl.addEventListener("change", () => { read(); renderStudio(); }));
+  el.querySelector("#st-draw").addEventListener("click", () => { read(); renderStudio(); });
+  el.querySelector("#st-save").addEventListener("click", () => { read(); const name = prompt("この絵の名前（説明ではなく、名前だけ）", st.name || ""); if (name === null) return; st.name = name.trim() || "無題"; state.pictures = state.pictures || []; state.pictures.push(JSON.parse(JSON.stringify(st))); saveState(); toast("わたしの絵に入れました"); aiSay(`絵を作った：「${st.name}」。誰かに絵だけ渡して、何が見えるか聞いてみる？（リンクか PNG で）`); });
+  el.querySelector("#st-png").addEventListener("click", () => { read(); svgToPng(el.querySelector("#st-pic svg"), st.name || "picture"); });
+  el.querySelector("#st-link").addEventListener("click", () => { read(); copyLink({studio: JSON.parse(JSON.stringify(st))}); });
+}
+function renderMine() {
+  const el = $("#view-mine"), pics = state.pictures || [];
+  el.innerHTML = `<div class="mine"><h2>わたしの絵</h2><p class="muted">自分で作った「分からなさ」。誰かに渡すときは、説明をつけない。</p>
+    <div class="gallery">${pics.map((p, i) => `<div class="item">${renderStudioPicture(p)}<div class="t">${esc(p.name || "無題")}</div><div class="row"><button class="small" data-open="${i}">入口に出す</button><button class="small" data-link="${i}">リンク</button><button class="small quiet" data-del="${i}">消す</button></div></div>`).join("") || '<p class="muted">まだありません。「作る」で作れます。</p>'}</div></div>`;
+  el.querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => { doorState.fromLink = {id: "studio", studio: pics[+b.dataset.open], mine: true}; showView("door"); renderDoor(); }));
+  el.querySelectorAll("[data-link]").forEach(b => b.addEventListener("click", () => copyLink({studio: pics[+b.dataset.link]})));
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { if (confirm("この絵を消す？")) { state.pictures.splice(+b.dataset.del, 1); saveState(); renderMine(); } }));
+}
+function showView(v) { ui.view = v; document.querySelectorAll("nav.views button").forEach(b => b.classList.toggle("active", b.dataset.view === v)); document.querySelectorAll(".view").forEach(p => p.classList.toggle("active", p.id === "view-" + v)); if (v === "mine") renderMine(); if (v === "studio" && !$("#view-studio").innerHTML) renderStudio(); }
+function showSide(on) { document.querySelector("main").classList.toggle("entrance", !on); }
+
+// =====================================================================
 // 設定・起動
 // =====================================================================
 function renderSettings() {
@@ -583,11 +826,20 @@ function init() {
   const fresh = !state;
   if (fresh) { const name = prompt("きみの名前（地図につけます）", "わたし") || "わたし"; state = newState(name.trim() || "わたし"); saveState(); }
   renderGrid(); renderTree(); renderDiv(); renderRace(); renderWorld(); renderTest(); renderCards(); renderBook(); renderSettings();
+  if (!openFromHash()) doorState.i = Math.floor(Math.random() * DOORS.length);
+  renderDoor();
+  document.querySelectorAll("nav.views button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+  $("#btn-side").addEventListener("click", () => showSide(document.querySelector("main").classList.contains("entrance")));
+  $("#door-prev").addEventListener("click", () => { doorState.fromLink = null; doorState.tinker = false; doorState.i = (doorState.i + DOORS.length - 1) % DOORS.length; renderDoor(); });
+  $("#door-next").addEventListener("click", () => { doorState.fromLink = null; doorState.tinker = false; doorState.i = (doorState.i + 1) % DOORS.length; renderDoor(); });
+  $("#door-tinker").addEventListener("click", () => { doorState.tinker = !doorState.tinker; $("#door-controls").classList.toggle("show", doorState.tinker); });
+  $("#door-gotit").addEventListener("click", showImpulse);
+  $("#door-note").addEventListener("click", () => { const d = currentDoor(); const text = prompt("気づいたこと（自分の言葉で。分かっていなくていい）", ""); if (!text || !text.trim()) return; addCard({type: "notice", text: text.trim(), params: {door: d.studio ? null : d.id, studio: d.studio || null, p: doorParams(d)}, parent: ui.selected}); showSide(true); showTab("cards"); aiReactToCard(state.cards[state.cards.length - 1]); });
   document.querySelectorAll(".toys button").forEach(b => b.addEventListener("click", () => showToy(b.dataset.toy)));
   document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { showTab(b.dataset.tab); if (b.dataset.tab === "book") renderBook(); }));
   $("#chatform").addEventListener("submit", ev => { ev.preventDefault(); const t = $("#chatin").value.trim(); if (!t) return; $("#chatin").value = ""; onChat(t); });
-  $("#btn-help").addEventListener("click", () => { showTab("ai"); aiSay("ここには課題がない。左のおもちゃを好きにいじる。\n「あれ？」と思ったら、それを右の地図にカードとして書く（自分の言葉で）。\n予想ができたら「予想を試す機械」で試す。外れたら、それも書く。外れは宝物。\n一枚のカードから「問いの種」で次の問いを作ると、地図が枝分かれして育つ。\n教科書の言葉は隠してある。あとで「これ、たぶん教科書のあれ」と自分で結びつける。\n私は答えを言わない。聞くだけ。"); });
-  aiSay(fresh ? `${state.name}さん、こんにちは。ここには課題も順番もない。左のおもちゃをいじって、「あれ？」と思ったことを右に書いていくと、きみの地図が育つ。まず、数の表で好きな数を消してみる？` : `おかえりなさい。カードは ${state.cards.length} 枚。続きから。`);
+  $("#btn-help").addEventListener("click", () => { showSide(true); showTab("ai"); aiSay("入口には、説明のない絵が並んでいる。分からないのに目が離せない絵。\n見て、「何が見える？」に自分で答える。いじると、絵の中の数が動く。\n分かったかも、と思ったら「分かったかも」。そのとき何をしたいか——もっと試す／自分で作る／誰かに見せる／地図に書く——を選べる。\n「作る」では自分の絵が作れる。誰かに渡すときは説明をつけない。相手の「何が見える？」から始まるように。\nおもちゃ・地図・AI は前のまま。私は答えを言わない。"); aiSay("ここには課題がない。左のおもちゃを好きにいじる。\n「あれ？」と思ったら、それを右の地図にカードとして書く（自分の言葉で）。\n予想ができたら「予想を試す機械」で試す。外れたら、それも書く。外れは宝物。\n一枚のカードから「問いの種」で次の問いを作ると、地図が枝分かれして育つ。\n教科書の言葉は隠してある。あとで「これ、たぶん教科書のあれ」と自分で結びつける。\n私は答えを言わない。聞くだけ。"); });
+  aiSay(fresh ? `${state.name}さん、こんにちは。入口の絵には説明がない。何が見える？ 分かったかも、と思ったら教えて。私は答えを言わない。` : `おかえりなさい。カードは ${state.cards.length} 枚。続きから。`);
 }
 if (typeof window !== "undefined" && typeof document !== "undefined") { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init(); }
 </script>
