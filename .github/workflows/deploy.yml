@@ -34,7 +34,7 @@ jobs:
       - name: Experiment and puzzle notebooks from percent scripts (*.py -> *.ipynb)
         run: |
           jupytext --to ipynb experiments/[0-9]*.py
-          jupytext --to ipynb puzzles/p*.py
+          jupytext --to ipynb puzzles/[pu]*.py
 
       - name: Commit generated files once (font subset, experiment notebooks)
         if: github.ref == 'refs/heads/main'
@@ -70,7 +70,7 @@ jobs:
       - name: Execute the puzzle notebooks and publish the runs (executed HTML + evidence records)
         run: |
           mkdir -p _runs
-          for nb in puzzles/p*.ipynb; do
+          for nb in puzzles/[pu]*.ipynb; do
             name=$(basename "$nb" .ipynb)
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 --output "$name.ipynb" --output-dir _runs "$nb"
             jupyter nbconvert --to html --output "$name.html" --output-dir _runs "_runs/$name.ipynb"
@@ -83,7 +83,7 @@ jobs:
           cp kg_prime_factorization.ipynb _lite/
           cp fonts/* _lite/fonts/
           cp experiments/[0-9]*.ipynb experiments/kg_tools.py _lite/experiments/
-          cp puzzles/p*.ipynb experiments/kg_tools.py _lite/puzzles/
+          cp puzzles/[pu]*.ipynb experiments/kg_tools.py _lite/puzzles/
           jupyter lite build --contents _lite --output-dir dist
 
       - name: Add the apps, the puzzle runs, figures, executed notebook and HTML to the site
