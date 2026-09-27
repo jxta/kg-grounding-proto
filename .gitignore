@@ -2,6 +2,7 @@
 dist/
 _lite/
 _check/
+_runs/
 _figures/
 _output/
 .jupyterlite.doit.db
