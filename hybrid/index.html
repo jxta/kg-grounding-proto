@@ -148,24 +148,86 @@ function pic_twosq(N = 60) {
   for (let n = 1; n <= N; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, on = twoSq(n); parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="4" fill="${on ? "#111" : "#fff"}" stroke="#ddd" stroke-width=".5"></rect><text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="11" fill="${on ? "#fff" : "#999"}">${n}</text>`); }
   return `<svg viewBox="0 0 ${cols*cell} ${Math.ceil(N/cols)*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${Math.ceil(N/cols)*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
 }
+function pic_partial_sieve() {
+  const cols = 10, cell = 30, parts = []; const off = new Set(); for (const k of [2, 3]) for (let n = 2 * k; n <= 100; n += k) off.add(n);
+  for (let n = 1; n <= 100; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, o = off.has(n); parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="4" fill="${o ? "#e6e6e6" : "#fff"}" stroke="#ccc" stroke-width=".5"></rect><text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="11" fill="${o ? "#aaa" : "#111"}">${n}</text>`); if (o) parts.push(`<line x1="${x+6}" y1="${y+cell-6}" x2="${x+cell-6}" y2="${y+6}" stroke="#999"></line>`); }
+  return `<svg viewBox="0 0 ${cols*cell} ${10*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${10*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function pic_split() {
+  const node = (x, y, t, fill) => `<rect x="${x-22}" y="${y-12}" width="44" height="24" rx="6" fill="${fill}" stroke="#111" stroke-width=".8"></rect><text x="${x}" y="${y+4}" text-anchor="middle" font-size="12" fill="${fill === "#111" ? "#fff" : "#111"}">${t}</text>`;
+  const tree = (ox, a, b) => `${node(ox+90, 20, "60", "#f4f4f4")}<line x1="${ox+90}" y1="32" x2="${ox+45}" y2="58" stroke="#666"></line><line x1="${ox+90}" y1="32" x2="${ox+135}" y2="58" stroke="#666"></line>${node(ox+45, 70, a, "#fff")}${node(ox+135, 70, b, "#fff")}<line x1="${ox+45}" y1="82" x2="${ox+25}" y2="106" stroke="#666" stroke-dasharray="3 3"></line><line x1="${ox+45}" y1="82" x2="${ox+65}" y2="106" stroke="#666" stroke-dasharray="3 3"></line><line x1="${ox+135}" y1="82" x2="${ox+115}" y2="106" stroke="#666" stroke-dasharray="3 3"></line><line x1="${ox+135}" y1="82" x2="${ox+155}" y2="106" stroke="#666" stroke-dasharray="3 3"></line><text x="${ox+90}" y="128" text-anchor="middle" font-size="16" fill="#777">?　?　?　?</text>`;
+  return `<svg viewBox="0 0 400 140" xmlns="${SVG_NS}"><rect width="400" height="140" fill="#fff"></rect>${tree(10, "6", "10")}${tree(210, "4", "15")}</svg>`;
+}
+function pic_cards72() {
+  const ds = [1, 2, 3, 4, 6, 8, 9, 12, 18, 24, 36, 72], pos = [[40, 30], [120, 22], [200, 40], [290, 26], [60, 86], [150, 78], [240, 92], [330, 70], [90, 136], [180, 128], [270, 142], [350, 124]];
+  const parts = ds.map((d, i) => { const [x, y] = pos[i], r = (i * 37) % 11 - 5; return `<g transform="rotate(${r} ${x} ${y})"><rect x="${x-20}" y="${y-13}" width="40" height="26" rx="4" fill="#fff" stroke="#111" stroke-width="1"></rect><text x="${x}" y="${y+4}" text-anchor="middle" font-size="12" fill="#111">${d}</text></g>`; });
+  return `<svg viewBox="0 0 400 170" xmlns="${SVG_NS}"><rect width="400" height="170" fill="#fff"></rect>${parts.join("")}<text x="8" y="164" font-size="11" fill="#777">72 の約数のカード。きれいに並べられる？</text></svg>`;
+}
+function pic_share() {
+  const dot = (i, y, fill) => `<circle cx="${14 + (i % 12) * 26}" cy="${y + Math.floor(i / 12) * 24}" r="9" fill="${fill}" stroke="#111"></circle>`;
+  const a = Array.from({length: 24}, (_, i) => dot(i, 24, "#111")).join(""), b = Array.from({length: 36}, (_, i) => dot(i, 96, "#fff")).join("");
+  return `<svg viewBox="0 0 320 180" xmlns="${SVG_NS}"><rect width="320" height="180" fill="#fff"></rect>${a}${b}<text x="8" y="174" font-size="11" fill="#777">あめ 24 個、チョコ 36 個。同じ人数で余りなく分けるなら、最大何人？</text></svg>`;
+}
+function pic_infinite() {
+  const card = (x, t) => `<rect x="${x}" y="30" width="44" height="60" rx="6" fill="#fff" stroke="#111" stroke-width="1"></rect><text x="${x+22}" y="66" text-anchor="middle" font-size="18" fill="#111">${t}</text>`;
+  return `<svg viewBox="0 0 400 130" xmlns="${SVG_NS}"><rect width="400" height="130" fill="#fff"></rect>${card(20, "2")}<text x="76" y="66" font-size="16" fill="#111">×</text>${card(92, "3")}<text x="148" y="66" font-size="16" fill="#111">×</text>${card(164, "5")}<text x="220" y="66" font-size="16" fill="#111">×</text>${card(236, "7")}<text x="292" y="66" font-size="16" fill="#111">+ 1 =</text><rect x="342" y="30" width="44" height="60" rx="6" fill="#111"></rect><text x="364" y="66" text-anchor="middle" font-size="18" fill="#fff">?</text><text x="8" y="118" font-size="11" fill="#777">「素数は 2, 3, 5, 7 で全部」と言う人に、どう反論する？</text></svg>`;
+}
+function pic_mod4() {
+  const cols = 10, cell = 30, parts = [];
+  for (let n = 1; n <= 100; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, p = isPrime(n), fill = !p ? "#fff" : n === 2 ? "#fff" : (n % 4 === 1 ? "#bdbdbd" : "#111"); parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="4" fill="${fill}" stroke="${p ? "#111" : "#ddd"}" stroke-width="${p ? 1 : .5}"></rect><text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="11" fill="${fill === "#111" ? "#fff" : p ? "#111" : "#bbb"}">${n}</text>`); }
+  return `<svg viewBox="0 0 ${cols*cell} ${10*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${10*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function pic_square_tiles() {
+  const u = 14, tiles = (ox, oy, a, b) => { const o = []; for (let i = 0; i < a; i++) for (let j = 0; j < b; j++) o.push(`<rect x="${ox + j*u}" y="${oy + i*u}" width="${u-1}" height="${u-1}" fill="#111"></rect>`); return o.join(""); };
+  return `<svg viewBox="0 0 400 130" xmlns="${SVG_NS}"><rect width="400" height="130" fill="#fff"></rect>${tiles(20, 20, 6, 6)}<text x="20" y="118" font-size="11" fill="#777">36 枚</text>${tiles(150, 34, 4, 6)}<text x="150" y="118" font-size="11" fill="#777">24 枚</text>${tiles(270, 20, 6, 8)}<text x="270" y="118" font-size="11" fill="#777">48 枚</text></svg>`;
+}
 const PUZZLES = [
-  {id: "p1_lockers", title: "100 個のロッカー", pic: pic_lockers, notebook: "p1_lockers.ipynb",
+  {id: "u1_sieve", group: "unit", title: "消していくと、何が残る？", pic: pic_partial_sieve, notebook: "u1_sieve.ipynb",
+   ask: "1〜100 の表。2 の倍数を消す（2 は残す）、次に 3 の倍数、5、7、…。消すものがなくなるのは何の倍数まで消したとき？ 残った数はどんな数？",
+   hand: {items: "1〜100 を書いた表（方眼紙に 10 × 10）、鉛筆", steps: ["2 の倍数に斜線（2 自身は残す）。次に 3 の倍数、5、7", "7 のあと、11 の倍数で新しく消える数があるか確かめる", "残った数を書き出す。1 はどうするか決める"], record: "残った数の一覧。どの数の倍数まで消したら止まったか。1 の扱い"},
+   book: ["sieve", "prime", "composite", "divisor_multiple"]},
+  {id: "u2_split", group: "unit", title: "分けるカード — 最後は同じ？", pic: pic_split, notebook: "u2_split.ipynb",
+   ask: "60 のカードを 2 つの数のかけ算に分けて 2 枚にする。分けたカードをまた分ける。もう分けられなくなったら終わり。分け方を変えると、最後のカードの組は変わる？",
+   hand: {items: "紙のカード 20 枚、鉛筆", steps: ["60 から始めて最後まで分け、残ったカードを並べて写す", "もう一度 60 から、ちがう分け方で。72 でも 2 通り", "「1 × 60」に分けるのも許してみる"], record: "それぞれの最後のカードの組。1 を許したときに起きたこと"},
+   book: ["factorization", "trial_division", "uniqueness", "one_not_prime", "exponent"]},
+  {id: "u3_count", group: "unit", title: "72 の約数は何個？", pic: pic_cards72, notebook: "u3_count.ipynb",
+   ask: "72 の約数を全部書き出すと何個？ 360 は？ 2025 は？ 書き出さずに個数を当てる方法はある？",
+   hand: {items: "カード 20 枚、鉛筆", steps: ["72 の約数を全部見つけてカードに書く（1 と 72 も）", "カードを縦と横にきれいに並べる（ヒント：2 倍ずつ、3 倍ずつ）。何行何列？", "48 でも同じことを"], record: "約数の一覧と個数、並べたときの行と列（72 と 48）"},
+   book: ["divisor_count", "exponent", "uniqueness"]},
+  {id: "u4_share", group: "unit", title: "同じ人数で、余りなく分ける", pic: pic_share, notebook: "u4_share.ipynb",
+   ask: "あめ 24 個とチョコ 36 個。何人なら両方とも余りなく分けられる？ 最大何人？ 24 cm と 36 cm の棒をつなげていくと、端が初めてそろうのは何 cm？",
+   hand: {items: "おはじき 2 色（24 個と 36 個）、方眼紙", steps: ["24 個を 2 人分、3 人分、…と等しく分けてみる。36 個でも。両方分けられる人数を全部見つける", "方眼紙に 24 マスの棒と 36 マスの棒をつなげて描き、端がそろう所に印"], record: "両方分けられる人数の一覧と最大。端がそろう長さ（最初とその次）"},
+   book: ["gcd_lcm", "factorization"]},
+  {id: "u5_infinite", group: "unit", title: "いちばん大きい素数はある？", pic: pic_infinite, notebook: "u5_infinite.ipynb",
+   ask: "「素数は 2, 3, 5, 7 で全部だ」と言う人がいる。反論できる？ ヒント：全部かけて 1 を足してみる。",
+   hand: {items: "素数のカード（2, 3, 5, 7, 11）、紙と鉛筆", steps: ["2×3+1、2×3×5+1、2×3×5×7+1 を筆算で計算する", "できた数をカードの素数（2, 3, 5, 7）で割って、余りを書く", "できた数は素数か？ 素数でなければ何で割り切れる？"], record: "3 つの数と余り。素数かどうか"},
+   book: ["infinite_primes", "factorization", "prime"]},
+  {id: "u6_race", group: "unit", title: "4 で割った余り、1 と 3 のどっちが多い？", pic: pic_mod4, notebook: "u6_race.ipynb",
+   ask: "2 以外の素数を 4 で割ると余りは 1 か 3。100 までの素数では、どっちが多い？ もっと先まで数えると？",
+   hand: {items: "100 までの素数の表（単元パズル1 で作ったもの）、おはじき 2 色", steps: ["素数を 4 で割った余りで 2 つの山に分ける（余り 1 に白、余り 3 に黒）。2 は別", "数える"], record: "余り 1 の個数と一覧、余り 3 の個数と一覧。どっちが多いか"},
+   book: ["prime_race", "prime"]},
+  {id: "u7_square", group: "unit", title: "正方形に並ぶ枚数の素因数分解", pic: pic_square_tiles, notebook: "u7_square.ipynb",
+   ask: "正方形にすきまなく並べられるタイルの枚数（1, 4, 9, 16, …）。素因数分解に共通点はある？ 分解を見ただけで「正方形にできる」と分かる？",
+   hand: {items: "タイル 64 枚（おはじきや碁石でも）、鉛筆", steps: ["16, 24, 36, 48, 64 枚で正方形を作ってみる", "できた枚数・できなかった枚数それぞれの素因数分解を手で書く（単元パズル2 のやり方で）"], record: "できた／できなかった枚数と、素因数分解。気づいたこと"},
+   book: ["square", "exponent", "uniqueness", "divisor_count"]},
+
+  {id: "p1_lockers", group: "extra", title: "100 個のロッカー", pic: pic_lockers, notebook: "p1_lockers.ipynb",
    ask: "閉まったロッカーが 100 個。k 人目は k の倍数のロッカーを開け閉めする。100 人が通ったあと、開いているのはどれ？",
    hand: {items: "カード 20 枚（トランプでも紙でも）", steps: ["裏向きに 1 列に並べ、左から 1〜20 番とする", "1 人目は全部めくる。2 人目は 2, 4, 6, … 番をめくり返す。3 人目は 3, 6, 9, … 番", "20 人目まで。表になっているカードの番号を書く"], record: "表のカードの番号。何番が何回めくられたか"},
    book: ["divisor_count", "square"]},
-  {id: "p2_tiles", title: "タイルで長方形", pic: pic_tiles, notebook: "p2_tiles.ipynb",
+  {id: "p2_tiles", group: "extra", title: "タイルで長方形", pic: pic_tiles, notebook: "p2_tiles.ipynb",
    ask: "同じタイル n 枚で長方形を作る。何通りできる？ 1 通りしかできない枚数は？ 正方形ができる枚数は？",
    hand: {items: "正方形のタイル 36 枚（消しゴム、碁石、おはじき、折り紙を切ったもの）", steps: ["12 枚で作れる長方形を全部作り、縦 × 横 を書く", "13 枚、16 枚、24 枚、36 枚でも", "1 通りしかできなかった枚数、正方形ができた枚数に印"], record: "枚数ごとの長方形の一覧"},
    book: ["divisor_multiple", "prime", "divisor_count", "square"]},
-  {id: "p3_billiard", title: "ビリヤードの玉", pic: pic_billiard, notebook: "p3_billiard.ipynb",
+  {id: "p3_billiard", group: "extra", title: "ビリヤードの玉", pic: pic_billiard, notebook: "p3_billiard.ipynb",
    ask: "縦 m・横 n の台の左下から 45° に玉を打つ。壁で跳ね返り、角に着くと止まる。どの角に着く？ 何回跳ね返る？ 台の大きさを変えると？",
    hand: {items: "方眼紙と鉛筆", steps: ["3 × 5 の長方形を描き、左下からマス目の対角線をなぞって線を引く。壁で折り返す", "角に着いたら終わり。着いた角と、跳ね返った回数を書く", "4 × 6、4 × 7、6 × 9、5 × 5 でも"], record: "台の大きさ、着いた角、跳ね返りの回数。線が通らなかったマス"},
    book: ["gcd_lcm"]},
-  {id: "p4_stamps", title: "3 円切手と 5 円切手", pic: pic_stamps, notebook: "p4_stamps.ipynb",
+  {id: "p4_stamps", group: "extra", title: "3 円切手と 5 円切手", pic: pic_stamps, notebook: "p4_stamps.ipynb",
    ask: "3 円と 5 円の切手だけで、作れない金額は？ いちばん大きい「作れない金額」は？ 4 円と 6 円なら？",
    hand: {items: "2 種類のコイン（またはおはじき 2 色）", steps: ["片方を 3 円、もう片方を 5 円とする。1 円から順に、ぴったり作れるか試す", "作れない金額に印。20 円まで", "4 円と 6 円でも同じことを"], record: "作れない金額の一覧（3 と 5、4 と 6）。「ここから先は全部作れる」と言えそうな所"},
    book: ["gcd_lcm"]},
-  {id: "p5_two_squares", title: "タイルを正方形 2 つに", pic: pic_twosq, notebook: "p5_two_squares.ipynb",
+  {id: "p5_two_squares", group: "extra", title: "タイルを正方形 2 つに", pic: pic_twosq, notebook: "p5_two_squares.ipynb",
    ask: "タイル n 枚を全部使って、正方形 2 つ（片方は 1 枚や 0 枚でもよい）に並べられる？ 5 枚なら 4 + 1。3 枚は？ 7 枚は？",
    hand: {items: "タイル 30 枚", steps: ["1 枚から 30 枚まで、正方形 2 つ（または 1 つ）に並べられるか試す", "できた枚数、できなかった枚数を分けて書く", "できなかった枚数のうち素数はどれ？"], record: "できた枚数の一覧"},
    book: ["prime", "square", "prime_race"]},
@@ -231,8 +293,10 @@ function runBadges(run) {
 function renderDoor() {
   const el = $("#view-door");
   if (ui.puzzle) return renderPuzzle(ui.puzzle);
+  const grid = g => `<div class="grid">${PUZZLES.filter(p => p.group === g).map(p => `<div class="pz" data-id="${p.id}">${p.pic()}<div class="t">${esc(p.title)}</div><div class="ask">${esc(p.ask)}</div></div>`).join("")}</div>`;
   el.innerHTML = `<h2>数のパズル</h2><p class="muted">答えは書いていない。まず絵を見て、次に手で（物を動かして）、それからノートで（機械に手伝わせて）。分かったことは自分の言葉で地図に。</p>
-    <div class="grid">${PUZZLES.map(p => `<div class="pz" data-id="${p.id}">${p.pic()}<div class="t">${esc(p.title)}</div><div class="ask">${esc(p.ask)}</div></div>`).join("")}</div>`;
+    <h3>素数と素因数分解（単元）</h3>${grid("unit")}
+    <h3 style="margin-top:22px">もう少し遠くへ</h3>${grid("extra")}`;
   el.querySelectorAll(".pz").forEach(d => d.addEventListener("click", () => { ui.puzzle = d.dataset.id; renderPuzzle(ui.puzzle); }));
 }
 function renderPuzzle(id) {
