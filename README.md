@@ -12,6 +12,7 @@
 
 | 方法 | リンク | 備考 |
 |:--|:--|:--|
+| **手と機械の実験室**（形4、ブラウザ＋JupyterLite） | [実験室を開く](https://jxta.github.io/kg-grounding-proto/hybrid/) | 入口は数学パズル。手で（物を動かす）→ ノートで（機械に手伝わせる）→ 記録（結果・条件・ノートの版）が地図のカードにつく。公開の実行記録と照らせる（[設計メモ](HYBRID_DESIGN.md)） |
 | **数の遊び場**（形3、ブラウザだけ） | [遊び場を開く](https://jxta.github.io/kg-grounding-proto/play/) | 入口は説明のない絵（魅力的な分からなさ）。「分かったかも」の衝動を、もっと試す／自分で作る／誰かに見せる／地図に書く につなぐ。おもちゃ・予想を試す機械・問いの種・隠した教科書の言葉（[設計メモ](PLAY_DESIGN.md)） |
 | **地図アプリ ＋ 実験ノート**（形2、ブラウザだけ） | [自分の地図を開く](https://jxta.github.io/kg-grounding-proto/app/) | 地図を見て・編集し、ノードごとに実験ノートを別タブで開く。結果は地図に届く。そばにいる AI と相談しながら進める（下の「もう一つの形」） |
 | **JupyterLite**（形1、ブラウザだけ。インストール不要） | [Lab 画面](https://jxta.github.io/kg-grounding-proto/lab/index.html?path=kg_prime_factorization.ipynb) ／ [Notebook 画面](https://jxta.github.io/kg-grounding-proto/notebooks/index.html?path=kg_prime_factorization.ipynb) | 初回は Pyodide の読み込みに 20〜30 秒。全セル実行は 15 秒ほど。保存した地図はブラウザの中に残る |
@@ -63,6 +64,17 @@
 |:--:|:--:|
 | ![](https://jxta.github.io/kg-grounding-proto/figures/h_trees.png) | ![](https://jxta.github.io/kg-grounding-proto/figures/prime_race.png) |
 
+## 形4：手と機械の実験室（[開く](https://jxta.github.io/kg-grounding-proto/hybrid/)）— パズル・手・ノート・再現できる記録
+
+Web アプリは **入口と全体の整理**、本格的な実験は **Jupyter Notebook**、実行結果は **ノートの版と条件つきの記録** として地図のノードにリンクする。研究の再現性と同じ意味での接地。
+
+- **入口は数学パズル**：100 個のロッカー／タイルで長方形／ビリヤードの玉／3 円切手と 5 円切手／タイルを正方形 2 つに。答えは書かない
+- **手で → ノートで**：各ノート（`puzzles/`）は、物を動かす実験の説明 → 手の結果を書き込むセル → 同じ条件を機械で → 手と機械の照合 → もっと先へ → 予想を試す → 記録を送る、の順
+- **記録＝接地リンク**：`report()` が結果・手の結果・条件・**ノート本文の指紋**（`nb_sha`）・環境を地図アプリに届ける。カードに記録をつけると「手」「記録（版・条件）」「ノート」の印が並ぶ
+- **照合**：CI が同じノートを実行した公開の記録（[runs/](https://jxta.github.io/kg-grounding-proto/runs/p1_lockers.html)）と比べ、「同じ版」「結果一致」を印で示す。自分の前回の記録とも比べる。「同じノートをもう一度」で再実行
+
+詳しくは [HYBRID_DESIGN.md](HYBRID_DESIGN.md)。
+
 ## 形3：数の遊び場（[開く](https://jxta.github.io/kg-grounding-proto/play/)）— 生きた知識のために
 
 今井むつみの「生きた知識／死んだ知識」「アブダクション」「記号接地」「本当の遊び」で形1・形2を見直すと、
@@ -101,6 +113,9 @@
 
 | ファイル | 用途 |
 |:--|:--|
+| `hybrid/index.html` | 手と機械の実験室（形4、1 ファイル）。パズル・手の記録・ノートからの記録の照合・接地リンクつきカード |
+| `puzzles/*.py` | パズルノートの元（jupytext）。手の実験 → 機械の実験 → `report()`。CI が実行して `runs/` に実行済み HTML と記録 JSON を置く |
+| `HYBRID_DESIGN.md` | 形4の設計メモ（再現性としての接地、三つの層） |
 | `play/index.html` | 数の遊び場（形3、1 ファイル、依存なし）。おもちゃ・カード・問いの種・AI |
 | `PLAY_DESIGN.md` | 形3の設計メモ（今井むつみの枠組みとの対応、形1・形2の自己批判、限界） |
 | `app/index.html` | 地図アプリ本体（形2、1 ファイル、依存なし）。別の単元にするには先頭の `UNIT` を差し替える |
@@ -129,9 +144,9 @@
 | `requirements.txt` / `apt.txt` | 依存（Binder もこれを読む） |
 | `tools/make_font_subset.py` | Noto Sans CJK JP のサブセット（約 1.8 MB）を `fonts/` に作る。JupyterLite・CI・CJK フォントのない環境用。その字体にない記号（≤ ⁴ ⚠ など）は DejaVu Sans で補う |
 | `fonts/NotoSansCJKjp-Regular-subset.otf` | 同梱の日本語フォント（上のツールで作ったもの、約 1.8 MB）。`fonts/LICENSE-OFL.txt` はそのライセンス（SIL OFL 1.1） |
-| `.github/workflows/deploy.yml` | push のたびにノートを実行し、実験ノートを生成・検証し、図・HTML・地図アプリ・JupyterLite を GitHub Pages に置く |
+| `.github/workflows/deploy.yml` | push のたびにノートを実行し、実験ノート・パズルノートを生成・実行し、図・HTML・実行記録・アプリ・JupyterLite を GitHub Pages に置く |
 
-GitHub Pages に置かれるもの：[数の遊び場](https://jxta.github.io/kg-grounding-proto/play/)、[地図アプリ](https://jxta.github.io/kg-grounding-proto/app/)、[JupyterLite](https://jxta.github.io/kg-grounding-proto/)（実験ノートは `experiments/`）、
+GitHub Pages に置かれるもの：[実験室](https://jxta.github.io/kg-grounding-proto/hybrid/)と[パズルの実行記録](https://jxta.github.io/kg-grounding-proto/runs/p1_lockers.html)、[数の遊び場](https://jxta.github.io/kg-grounding-proto/play/)、[地図アプリ](https://jxta.github.io/kg-grounding-proto/app/)、[JupyterLite](https://jxta.github.io/kg-grounding-proto/)（実験ノートは `experiments/`）、
 [図 11 枚](https://jxta.github.io/kg-grounding-proto/figures/map_2_final.png)（`figures/*.png`、モノクロ 200 dpi）、
 [実行結果つき HTML](https://jxta.github.io/kg-grounding-proto/kg_prime_factorization.html)、
 [実行結果つきノート](https://nbviewer.org/url/jxta.github.io/kg-grounding-proto/kg_prime_factorization_executed.ipynb)。
