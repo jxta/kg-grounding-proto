@@ -401,12 +401,37 @@ def euclid_numbers(k=10):
     return rows
 
 
-# ---------- 結果を地図アプリへ送る ----------
-def report(exp, summary, data=None):
+# ---------- 結果を地図アプリへ送る（来歴つき） ----------
+def _nb_sha(notebook):
+    """ノートの本文（コードと文章）だけから作る指紋。出力・実行順・手の結果を書くセルは含めない。同じ版なら同じ値になる"""
+    try:
+        import hashlib
+        with open(notebook, encoding="utf-8") as f:
+            nb = json.load(f)
+        parts = []
+        for c in nb.get("cells", []):
+            src = c.get("source", "")
+            src = "".join(src) if isinstance(src, list) else src
+            if "自分の結果に書き換える" in src:      # 手の結果を書き込むセルは指紋に含めない（書き換えるのが前提）
+                continue
+            parts.append(src)
+        return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
+    except Exception:
+        return None
+
+def report(exp, summary, data=None, hand=None, params=None, notebook=None):
     """実験の結果を「自分の地図」アプリに届ける。
     JupyterLite：同じブラウザで開いている地図アプリのタブに BroadcastChannel で送る。
-    それ以外：evidence_<exp>.json に書く。どちらの場合も画面にも表示する。"""
+    それ以外：evidence_<exp>.json に書く。どちらの場合も画面にも表示する。
+    data：機械の結果（同じ条件なら同じ値になるもの）。hand：手でやった結果。params：条件。
+    notebook：このノートのファイル名（渡すと本文の指紋 nb_sha を来歴に入れる → 再現性の接地リンク）"""
     msg = {"type": "evidence", "exp": exp, "summary": summary, "data": data or {}, "t": now()}
+    if hand is not None:
+        msg["hand"] = hand
+    if params is not None:
+        msg["params"] = params
+    msg["provenance"] = {"notebook": notebook, "nb_sha": _nb_sha(notebook) if notebook else None,
+                         "platform": sys.platform, "python": sys.version.split()[0], "t": msg["t"]}
     sent = False
     if sys.platform == "emscripten":
         try:
@@ -424,8 +449,10 @@ def report(exp, summary, data=None):
         except Exception:
             pass
     print("■ 結果：", summary)
+    if msg["provenance"]["nb_sha"]:
+        print(f"　来歴：{notebook}（本文の指紋 {msg['provenance']['nb_sha']}）／{sys.platform}／{msg['t']}")
     if sent:
-        print("→ 地図アプリに送りました（地図のタブを開いていれば「届いた結果」に出ます）")
+        print("→ 地図アプリに送りました（地図のタブを開いていれば「記録」に出ます）")
     else:
-        print("→ 地図アプリの「記録」で、この結果を自分で書き込んでください")
+        print(f"→ evidence_{exp}.json に書きました（地図アプリの「記録」から読み込めます）")
     return msg
