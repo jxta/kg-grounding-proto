@@ -1,4 +1,4 @@
-# ノートを実行して図と HTML を作り、実験ノートと地図アプリと JupyterLite を GitHub Pages に置く
+# ノートを実行して図と HTML を作り、実験ノート・パズルノート（実行記録つき）・地図アプリ・遊び場・実験室と JupyterLite を GitHub Pages に置く
 name: build-and-deploy
 
 on:
@@ -31,15 +31,17 @@ jobs:
       - name: Japanese font subset -> fonts/
         run: python tools/make_font_subset.py
 
-      - name: Experiment notebooks from percent scripts (experiments/*.py -> *.ipynb)
-        run: jupytext --to ipynb experiments/[0-9]*.py
+      - name: Experiment and puzzle notebooks from percent scripts (*.py -> *.ipynb)
+        run: |
+          jupytext --to ipynb experiments/[0-9]*.py
+          jupytext --to ipynb puzzles/p*.py
 
       - name: Commit generated files once (font subset, experiment notebooks)
         if: github.ref == 'refs/heads/main'
         continue-on-error: true   # 失敗しても配信は続ける（Re-run で古いコミットを見ているときなど）
         run: |
           git fetch origin main
-          git add fonts/*.otf experiments/*.ipynb
+          git add fonts/*.otf experiments/*.ipynb puzzles/*.ipynb
           if git diff --cached --quiet; then
             echo "nothing to commit"
           else
@@ -65,18 +67,31 @@ jobs:
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 --output-dir _check "$nb"
           done
 
-      - name: Build JupyterLite (main notebook + experiments + fonts)
+      - name: Execute the puzzle notebooks and publish the runs (executed HTML + evidence records)
         run: |
-          mkdir -p _lite/fonts _lite/experiments
+          mkdir -p _runs
+          for nb in puzzles/p*.ipynb; do
+            name=$(basename "$nb" .ipynb)
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 --output "$name.ipynb" --output-dir _runs "$nb"
+            jupyter nbconvert --to html --output "$name.html" --output-dir _runs "_runs/$name.ipynb"
+          done
+          cp puzzles/evidence_*.json _runs/
+
+      - name: Build JupyterLite (main notebook + experiments + puzzles + fonts)
+        run: |
+          mkdir -p _lite/fonts _lite/experiments _lite/puzzles
           cp kg_prime_factorization.ipynb _lite/
           cp fonts/* _lite/fonts/
           cp experiments/[0-9]*.ipynb experiments/kg_tools.py _lite/experiments/
+          cp puzzles/p*.ipynb experiments/kg_tools.py _lite/puzzles/
           jupyter lite build --contents _lite --output-dir dist
 
-      - name: Add the map app, the playground, figures, executed notebook and HTML to the site
+      - name: Add the apps, the puzzle runs, figures, executed notebook and HTML to the site
         run: |
           cp -r app dist/app
           cp -r play dist/play
+          cp -r hybrid dist/hybrid
+          mkdir -p dist/runs && cp _runs/*.html _runs/*.ipynb _runs/evidence_*.json dist/runs/
           cp -r _figures dist/figures
           cp kg_prime_factorization_executed.ipynb kg_prime_factorization.html dist/
           touch dist/.nojekyll
