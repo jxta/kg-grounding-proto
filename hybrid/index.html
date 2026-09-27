@@ -71,6 +71,10 @@
   .cellv { border:1px solid var(--line2); border-radius:6px; padding:6px 10px; margin:6px 0; }
   .cellv.code { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; white-space:pre-wrap; background:var(--paper2); }
   .cellv.md { white-space:pre-wrap; }
+  pre.cell { background:var(--paper2); border:1px solid var(--line2); border-radius:6px; padding:8px 10px; font-size:12px; overflow:auto; white-space:pre-wrap; margin:4px 0; }
+  .md-cell { border-left:3px solid var(--line); padding:4px 10px; margin:4px 0; white-space:pre-wrap; font-size:13px; }
+  .field { margin:8px 0; } .field label { display:block; font-weight:600; font-size:13px; margin-bottom:2px; } .field .hint { font-size:12px; color:var(--ink3); }
+  input[type=password] { border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
   .toast { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
   .toast.show { opacity:1; }
   @media (prefers-color-scheme: dark) {
@@ -237,7 +241,7 @@ const PUZZLES = [
    hand: {items: "タイル 30 枚", steps: ["1 枚から 30 枚まで、正方形 2 つ（または 1 つ）に並べられるか試す", "できた枚数、できなかった枚数を分けて書く", "できなかった枚数のうち素数はどれ？"], record: "できた枚数の一覧"},
    book: ["prime", "square", "prime_race"]},
 ];
-const pz = id => PUZZLES.find(p => p.id === id) || ((state && state.made) || []).map(m => ({id: "ai_" + m.slug, title: m.title, notebook: m.slug + ".ipynb", made: true})).find(p => p.id === id);
+const pz = id => PUZZLES.find(p => p.id === id) || ((state && state.mine) || []).find(p => p.id === id);
 const BOOK = {divisor_multiple: "約数と倍数", composite: "合成数", prime: "素数", factorization: "素因数分解", one_not_prime: "1は素数ではない", sieve: "エラトステネスの篩", exponent: "累乗の表し方", trial_division: "素因数分解の手順", uniqueness: "分解はただ一通り（一意性）", square: "平方数", gcd_lcm: "最大公約数・最小公倍数", divisor_count: "約数の個数", infinite_primes: "素数は無限にある", prime_race: "素数の偏り（4で割った余り）"};
 const TYPES = {q: "問い", notice: "気づき", guess: "予想", rule: "きまり", hand: "手でやった"};
 const SEEDS = [["もっと先", c => `「${c.text}」は、もっと大きい数でも同じ？`], ["変えてみる", c => `「${c.text}」の条件を変えたら（3 と 5 を 4 と 7 に、台を 5 × 8 に…）どうなる？`], ["逆は？", c => `「${c.text}」の逆は言える？`], ["なぜ？", c => `「${c.text}」は、なぜそうなる？ 手でやったときに何が起きていた？`], ["反例さがし", c => `「${c.text}」が外れる例はある？ 機械に探させる`], ["別のパズルと", c => `「${c.text}」は、別のパズルで見たことと同じ？`]];
@@ -246,8 +250,8 @@ const SEEDS = [["もっと先", c => `「${c.text}」は、もっと大きい数
 // 状態：カード（地図）と記録（ノートからの来歴つき結果）
 // =====================================================================
 let state, settings, ui = {view: "door", puzzle: null, selected: null};
-function newState(name) { return {name, created: now(), cards: [], runs: [], made: [], log: []}; }
-function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) { s.runs = s.runs || []; s.made = s.made || []; return s; } } catch (e) {} return null; }
+function newState(name) { return {name, created: now(), cards: [], runs: [], mine: [], log: []}; }
+function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) { s.runs = s.runs || []; s.mine = s.mine || []; return s; } } catch (e) {} return null; }
 function saveState() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 function loadSettings() { const d = {liteBase: "../", liteUI: "notebooks", runsBase: "../runs/", apiKey: "", model: "claude-sonnet-4-6"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
 function saveSettings() { try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} }
@@ -285,7 +289,7 @@ function receiveRun(msg, source) {
 function runBadges(run) {
   const b = [];
   const c = canon[run.exp];
-  if (String(run.exp).startsWith("ai_")) { b.push(`<span class="badge soft">自作の実験（公開の記録はない）</span>`); const m = (state.made || []).find(x => "ai_" + x.slug === run.exp); if (m && m.sha && run.provenance?.nb_sha) b.push(`<span class="badge ${m.sha === run.provenance.nb_sha ? "ok" : "ng"}">${m.sha === run.provenance.nb_sha ? "作ったときの版と同じ" : "作ったあとにノートを編集した"}</span>`); }
+  if (String(run.exp).startsWith("ai_")) { b.push(`<span class="badge soft">自作の実験（公開の記録はない）</span>`); const m = (state.mine || []).find(x => x.id === run.exp); if (m && m.sha && run.provenance?.nb_sha) b.push(`<span class="badge ${m.sha === run.provenance.nb_sha ? "ok" : "ng"}">${m.sha === run.provenance.nb_sha ? "作ったときの版と同じ" : "作ったあとにノートを編集した"}</span>`); }
   else if (c) { const cmp = compareRuns(run, c); b.push(`<span class="badge ${cmp.sameNb ? "ok" : "ng"}" title="公開記録のノートと同じ版か">${cmp.sameNb ? "ノートは公開と同じ版" : "ノートの版がちがう"}</span>`); if (cmp.sameParams) b.push(`<span class="badge ${cmp.sameData ? "ok" : "ng"}">${cmp.sameData ? "結果は公開の記録と一致" : "結果が公開の記録とちがう"}</span>`); else b.push(`<span class="badge soft">条件が公開の記録とちがう</span>`); }
   else if (c === null && !String(run.exp).startsWith("ai_")) b.push(`<span class="badge soft">公開の記録は取得できず</span>`);
   const prev = state.runs.filter(r => r.id !== run.id && r.exp === run.exp && stable(r.params || {}) === stable(run.params || {}) && r.received < run.received).pop();
@@ -303,14 +307,18 @@ function renderDoor() {
   const grid = g => `<div class="grid">${PUZZLES.filter(p => p.group === g).map(p => `<div class="pz" data-id="${p.id}">${p.pic()}<div class="t">${esc(p.title)}</div><div class="ask">${esc(p.ask)}</div></div>`).join("")}</div>`;
   el.innerHTML = `<h2>数のパズル</h2><p class="muted">答えは書いていない。まず絵を見て、次に手で（物を動かして）、それからノートで（機械に手伝わせて）。分かったことは自分の言葉で地図に。</p>
     <h3>素数と素因数分解（単元）</h3>${grid("unit")}
-    <h3 style="margin-top:22px">もう少し遠くへ</h3>${grid("extra")}`;
+    <h3 style="margin-top:22px">もう少し遠くへ</h3>${grid("extra")}
+    <h3 style="margin-top:22px">自分で作った実験</h3>${(state.mine || []).length ? `<div class="grid">${state.mine.map(p => `<div class="pz" data-id="${p.id}"><div class="t">${esc(p.title)}</div><div class="ask">${esc(p.ask)}</div><div class="muted">${p.made === "llm" ? "AI が書いたノート（指示は自分）" : "ひな形から作ったノート"}　${esc(p.t)}</div></div>`).join("")}</div>` : '<p class="muted">まだありません。「実験を作る」で、問い・手でやったこと・予想を自分の言葉で書くと、機械の部分のノートができます。</p>'}`;
   el.querySelectorAll(".pz").forEach(d => d.addEventListener("click", () => { ui.puzzle = d.dataset.id; renderPuzzle(ui.puzzle); }));
 }
 function renderPuzzle(id) {
   const el = $("#view-door"), p = pz(id), runs = state.runs.filter(r => r.exp === id), cards = state.cards.filter(c => c.puzzle === id);
   fetchCanon(id).then(c => { if (c && ui.puzzle === id) { const box = el.querySelector("#pz-runs"); if (box) box.innerHTML = runsHtml(runs); } });
   el.innerHTML = `<div class="pzpage"><div class="row"><button class="quiet small" id="pz-back">← パズル一覧</button></div>
-    <h2>${esc(p.title)}</h2>${p.pic()}<p style="font-size:15px">${esc(p.ask)}</p>
+    <h2>${esc(p.title)}</h2>${p.pic ? p.pic() : ""}<p style="font-size:15px">${esc(p.ask)}</p>
+    ${p.spec ? `<div class="box" style="margin-bottom:14px"><h3>この実験の来歴</h3><div class="muted">問い・手の結果・予想は自分が書いた。機械の部分（コード）は ${p.made === "llm" ? "生成 AI（" + esc(p.model || "") + "）" : "ひな形"} が書いた。実行記録はノートから届く。</div>
+      <div><b>予想</b>：${esc(p.spec.guess || "（なし）")}　<b>機械に頼んだこと</b>：${esc(p.spec.ask_machine || "")}</div>
+      <div class="row"><button class="small" data-redeliver="${p.id}">JupyterLite に置いて開く</button><a href="${esc(nbUrl("00_receive.ipynb"))}" target="_blank" rel="noopener"><button class="small quiet" data-viareceive="${p.id}">受け取りノート経由で送る</button></a><button class="small quiet" data-download="${p.id}">.ipynb を保存</button><button class="small quiet" data-showcode="${p.id}">コードを見る</button><button class="small quiet" data-delmine="${p.id}">この実験を消す</button></div><div id="pz-code"></div></div>` : ""}
     <div class="cols">
       <div class="box"><h3>手で</h3><div><b>用意するもの</b>：${esc(p.hand.items)}</div><ol class="steps">${p.hand.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="muted">記録すること：${esc(p.hand.record)}</div>
         <div class="row"><button class="primary small" id="pz-hand">手でやったことを書く</button></div>
@@ -324,6 +332,11 @@ function renderPuzzle(id) {
       <div class="row"><button class="small" data-new="notice">気づき</button><button class="small" data-new="q">問い</button><button class="small" data-new="guess">予想</button><button class="small" data-new="rule">きまり</button></div>
       ${cards.filter(c => c.type !== "hand").map(cardHtml).join("") || '<p class="muted">まだありません。</p>'}</div></div>`;
   el.querySelector("#pz-back").addEventListener("click", () => { ui.puzzle = null; renderDoor(); });
+  const rd = el.querySelector("[data-redeliver]"); if (rd) rd.addEventListener("click", () => deliverNotebook(p));
+  const vr = el.querySelector("[data-viareceive]"); if (vr) vr.addEventListener("click", () => { outbox = {name: p.notebook, ipynb: toIpynb(p.cells)}; postOutbox(); toast("受け取りノートを上から実行すると届きます（20 秒以内）"); });
+  const dl = el.querySelector("[data-download]"); if (dl) dl.addEventListener("click", () => downloadNotebook(p));
+  const sc = el.querySelector("[data-showcode]"); if (sc) sc.addEventListener("click", () => { el.querySelector("#pz-code").innerHTML = cellsHtml(p.cells); });
+  const dm = el.querySelector("[data-delmine]"); if (dm) dm.addEventListener("click", () => { if (confirm("この実験（設定とコード）を消す？ 記録とカードは残る")) { state.mine = state.mine.filter(x => x.id !== p.id); saveState(); ui.puzzle = null; renderDoor(); } });
   el.querySelector("#pz-hand").addEventListener("click", () => { const t = prompt(`${p.title}：手でやって見たこと（何を使って、何が起きた？ 自分の言葉で）`, ""); if (t && t.trim()) { addCard({type: "hand", text: t.trim(), puzzle: id, links: [{kind: "hand", t: now()}]}); renderPuzzle(id); } });
   el.querySelectorAll("[data-new]").forEach(b => b.addEventListener("click", () => { const t = prompt({notice: "気づき（自分の言葉で）", q: "問い", guess: "予想（あとで機械に試させる）", rule: "きまり（理由も書けたら書く）"}[b.dataset.new], ""); if (t && t.trim()) { addCard({type: b.dataset.new, text: t.trim(), puzzle: id}); renderPuzzle(id); } }));
   bindCardOps(el, () => renderPuzzle(id));
@@ -409,106 +422,189 @@ function renderCards() {
   el.querySelector("#c-import").addEventListener("change", ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(t => { const s = JSON.parse(t); if (!s.cards) throw 0; s.runs = s.runs || []; state = s; saveState(); renderCards(); toast("読み込みました"); }).catch(() => toast("読み込めませんでした")); });
 }
 
+
 // =====================================================================
-// 実験を作る：生徒が実験の計画（問い・手で・機械で・予想）を言葉で書き、AI がノートのコードを書く。
-// 何を AI に任せ、何を生徒に残すか —— 任せるのはコードだけ。問い・手の実験・予想・手の結果・解釈は生徒のもの
+// 実験を作る：問い・手の結果・予想は生徒が書く。機械の部分（コード）を AI かひな形が書く。
+// できたノートは JupyterLite に届き、実行記録は他のパズルと同じ形で地図につく
 // =====================================================================
+const PY_PREDS = [
+  {id: "prime", name: "素数", py: "sympy.isprime(n)"},
+  {id: "composite", name: "合成数", py: "n > 1 and not sympy.isprime(n)"},
+  {id: "odd", name: "奇数", py: "n % 2 == 1"},
+  {id: "even", name: "偶数", py: "n % 2 == 0"},
+  {id: "square", name: "平方数", py: "math.isqrt(n) ** 2 == n"},
+  {id: "divk", name: "約数がちょうど {k} 個", args: [["k", 3]], py: "sympy.divisor_count(n) == {k}"},
+  {id: "divodd", name: "約数が奇数個", py: "sympy.divisor_count(n) % 2 == 1"},
+  {id: "modr", name: "{m} で割ると {r} 余る", args: [["m", 4], ["r", 1]], py: "n % {m} == {r}"},
+  {id: "multm", name: "{m} で割り切れる", args: [["m", 3]], py: "n % {m} == 0"},
+  {id: "dsum", name: "桁の和が {m} の倍数", args: [["m", 3]], py: "sum(map(int, str(n))) % {m} == 0"},
+  {id: "sq2", name: "2 つの平方数の和", py: "any(math.isqrt(n - a * a) ** 2 == n - a * a for a in range(0, math.isqrt(n) + 1))"},
+  {id: "pr2", name: "2 つの素数の和", py: "any(sympy.isprime(p) and sympy.isprime(n - p) for p in range(2, n // 2 + 1))"},
+  {id: "any", name: "どんな数でも", py: "True"},
+];
+const pyPred = (sel) => { const p = PY_PREDS.find(x => x.id === sel.id); let code = p.py, name = p.name; for (const [k, d] of (p.args || [])) { const v = sel.args?.[k] ?? d; code = code.split("{" + k + "}").join(String(v)); name = name.split("{" + k + "}").join(String(v)); } return {code, name}; };
+const slugify = t => { const s = (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24); return /[a-z]/.test(s) ? s : "exp"; };
 const FIRST_CELL = 'import sys; sys.path.insert(0, "."); sys.path.insert(0, "../experiments")\nimport numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）\nfrom kg_tools import *';
-const HAND_MARK = "自分の結果に書き換える";
-const FORBID = [/import\s+(requests|urllib|socket|subprocess|shutil|http|js)\b/, /\bos\.(system|popen|remove|unlink|rmdir)\b/, /\bopen\s*\(/, /\beval\s*\(/, /\bexec\s*\(/, /!\s*pip/, /\bfetch\(/];
-function slugify(t) { const s = String(t).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24); return s || ("exp_" + Date.now().toString(36).slice(-5)); }
-function buildNotebook(gen, plan) {
-  const cells = [];
-  const md = src => ({cell_type: "markdown", id: "c" + cells.length, metadata: {}, source: src});
-  const code = src => ({cell_type: "code", id: "c" + cells.length, metadata: {}, execution_count: null, outputs: [], source: src});
-  cells.push(md(`# 自作の実験：${gen.title}\n\n**問い（自分で書いた）**：${plan.q}\n\n## 手で（物理的な実験）\n\n${plan.hand}\n\n**予想（自分の言葉）**：${plan.guess || "（まだ書いていない）"}\n\n*このノートのコードは AI が書いた。問い・手の実験・予想・手の結果は自分のもの。AI のコードが正しいとは限らない——手の結果と照らして確かめる。*`));
-  cells.push(code(FIRST_CELL));
-  for (const c of gen.cells || []) { if (!c || typeof c.source !== "string") continue; if (c.type === "markdown") cells.push(md(c.source)); else if (c.type === "code") cells.push(code(c.source)); }
-  const allCode = cells.filter(c => c.cell_type === "code").map(c => c.source).join("\n");
-  if (!/\breport\s*\(/.test(allCode)) cells.push(code(`report("ai_${gen.slug}", "自作の実験を実行した（要約は自分で書き直す）", data={}, hand={}, params={}, notebook="${gen.slug}.ipynb")`));
-  return {cells, metadata: {kernelspec: {display_name: "Python 3 (ipykernel)", language: "python", name: "python3"}, language_info: {name: "python"}}, nbformat: 4, nbformat_minor: 5};
-}
-function checkNotebook(nb) {
-  const issues = [], codes = nb.cells.filter(c => c.cell_type === "code").map(c => c.source);
-  for (const src of codes) for (const re of FORBID) if (re.test(src)) issues.push(`使ってはいけない書き方がある：${src.match(re)[0]}`);
-  if (!nb.cells.some(c => c.cell_type === "code" && c.source.includes(HAND_MARK))) issues.push(`手の結果を書き込むセル（「${HAND_MARK}」の印）がない`);
-  if (!codes.some(s => /report\s*\(/.test(s))) issues.push("最後の report() がない");
-  if (codes.some(s => /while\s+True/.test(s))) issues.push("終わらないかもしれない繰り返し（while True）がある。読んで確かめる");
-  if (codes.some(s => /range\(\s*\d{7,}/.test(s))) issues.push("1000 万以上の繰り返しがある。JupyterLite では重すぎるかもしれない");
-  return issues;
-}
-async function nbSha(nb) {
-  const parts = nb.cells.filter(c => !(String(c.source).includes(HAND_MARK))).map(c => String(c.source));
-  const buf = new TextEncoder().encode(parts.join("\n"));
-  if (!crypto?.subtle) return null;
-  const h = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
-}
-async function askAIForNotebook(plan) {
-  const sys = `あなたは中学生の「手と機械の実験室」で、実験ノート（Jupyter）のコードを書く係です。生徒が実験の計画（問い・手でやること・機械にやらせること・予想）を書きます。あなたはそれを、次の形のノートにします。
-守ること：
-- 問い・手の実験・予想は生徒のもの。書き換えない。答えや結論を書かない。
-- Python。使ってよいのは math, random, sympy, numpy, matplotlib.pyplot (plt), と kg_tools の道具（sieve_grid, factor_tree, leaves, show_trees, divisor_grid, prime_race, euclid_numbers, factorization_str, report）。ファイル・ネットワーク・open・eval・exec は使わない。
-- 重すぎる計算はしない（繰り返しは合計 100 万回程度まで。ブラウザの中で動く）。
-- 最初の import セルはこちらで足すので書かない。
-- セルの順：
-  1. code：手の結果を書き込むセル。変数に例の値を入れ、必ずコメント「# 自分の結果に書き換える」を付ける
-  2. markdown「## 機械で」
-  3. code：手と同じ条件をまず機械で計算し、手の結果と照らして「一致」「食い違い」を print する
-  4. markdown「**見るところ**」（何に注目するか。答えは書かない）
-  5. code：もっと先まで（生徒が書いた範囲まで）計算し、表や図を出す
-  6. markdown「## 予想を試す」
-  7. code：guess = "生徒の予想" を言葉で置き、my_guess(n) などの式にし、N までの反例を探して print する
-  8. code：report("ai_<slug>", "<一文の要約（f 文字列で結果を入れる）>", data={機械の主な結果}, hand={手の結果}, params={条件}, notebook="<slug>.ipynb")
-返事は必ず JSON だけ：{"title":"短い題","slug":"英小文字と数字と_だけ 8〜20 文字","cells":[{"type":"markdown"|"code","source":"..."}...]}`;
-  const user = `問い：${plan.q}\n手でやること（用意するもの・やり方・記録すること）：${plan.hand}\n機械にやらせること（何を、どこまで）：${plan.machine}\n予想（自分の言葉）：${plan.guess || "（まだない）"}\n名前（希望）：${plan.name || "（おまかせ）"}`;
-  const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {"content-type": "application/json", "x-api-key": settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"}, body: JSON.stringify({model: settings.model || "claude-sonnet-4-6", max_tokens: 4000, system: sys, messages: [{role: "user", content: user}]})});
-  if (!r.ok) throw new Error("API " + r.status + " " + (await r.text()).slice(0, 200));
-  const data = await r.json(); const raw = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
-  const m = raw.match(/\{[\s\S]*\}/); if (!m) throw new Error("JSON が返ってこなかった");
-  const gen = JSON.parse(m[0]); gen.slug = slugify(gen.slug || plan.name || gen.title); gen.title = gen.title || plan.name || "自作の実験";
-  return gen;
-}
-let makeDraft = {plan: {q: "", hand: "", machine: "", guess: "", name: ""}, gen: null, nb: null, issues: [], sha: null};
-function renderMake() {
-  const el = $("#view-make"), d = makeDraft, ready = !!settings.apiKey;
-  el.innerHTML = `<h2>実験を作る</h2>
-    <p class="muted">実験の計画は自分の言葉で書く。AI がやるのは、その計画どおりに動く <b>コードを書くこと</b> だけ。問い・手の実験・予想・手の結果・意味づけは自分のもの。AI のコードが正しいとは限らないので、手の結果と照らして確かめる（それは AI にはできない）。</p>
-    ${ready ? "" : '<div class="result">API キーがまだない。「設定」で入れる（先生のキーでもよい）。</div>'}
-    <div class="cols"><div class="box"><h3>計画（自分で書く）</h3>
-      <div>問い（何を知りたい？）</div><textarea id="m-q" placeholder="例：素数を 6 で割った余りは、1 と 5 のどっちが多い？">${esc(d.plan.q)}</textarea>
-      <div>手でやること（用意するもの・やり方・記録すること）</div><textarea id="m-hand" placeholder="例：100 までの素数の表を使い、6 で割った余りで 2 色に分けて数える。2 と 3 は別">${esc(d.plan.hand)}</textarea>
-      <div>機械にやらせること（何を、どこまで）</div><textarea id="m-machine" placeholder="例：100 までを手と同じように数えて照らす。次に 10000 までと 100000 までで数える。差のグラフを描く">${esc(d.plan.machine)}</textarea>
-      <div>予想（自分の言葉。まだなくてもよい）</div><textarea id="m-guess" placeholder="例：5 余りの方がずっと多い">${esc(d.plan.guess)}</textarea>
-      <div>名前</div><input type="text" id="m-name" value="${esc(d.plan.name)}" placeholder="例：mod6_race" style="width:100%">
-      <div class="row"><button class="primary" id="m-go" ${ready ? "" : "disabled"}>AI にノートを作らせる</button><span class="muted" id="m-status"></span></div></div>
-    <div class="box"><h3>できたノート（読んでから動かす）</h3>${d.nb ? `<div><b>${esc(d.gen.title)}</b> <code>${esc(d.gen.slug)}.ipynb</code>${d.sha ? ` <span class="muted">本文の指紋 ${esc(d.sha)}</span>` : ""}</div>
-      ${d.issues.length ? `<div class="result">確かめること：<ul style="margin:4px 0 0 18px">${d.issues.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>` : '<div class="result">機械で見た限り、形は整っている。読んで確かめるのは自分：（1）手の結果と照らす行はどこ？（2）どこまで数えている？（3）予想を試す行は、自分の予想と同じ？</div>'}
-      <div class="row"><button class="small primary" id="m-send">JupyterLite に送る</button><button class="small" id="m-dl">.ipynb をダウンロード</button><button class="small quiet" id="m-redo">計画を直して作り直す</button></div>
-      <div id="m-sendhelp" class="muted" style="display:none">送る準備ができた。JupyterLite で <b>00_receive.ipynb</b> を開いて上から実行すると、20 秒以内にこのノートが届く（届いたらファイル一覧を更新して開く）。<div class="row"><a href="${esc(nbUrl("00_receive.ipynb"))}" target="_blank" rel="noopener"><button class="small">受け取りノートを開く</button></a></div></div>
-      <div style="max-height:420px;overflow:auto;margin-top:8px">${d.nb.cells.map(c => `<div class="cellv ${c.cell_type === "code" ? "code" : "md"}">${esc(c.source)}</div>`).join("")}</div>` : '<p class="muted">まだありません。左の計画を書いて「AI にノートを作らせる」。</p>'}</div></div>
-    <h3>作った実験（${(state.made || []).length}）</h3>
-    ${(state.made || []).slice().reverse().map(m => `<div class="run"><div class="h"><b>${esc(m.title)}</b> <code>${esc(m.slug)}.ipynb</code> <span class="muted">${esc(m.t)}</span> ${m.sha ? `<span class="badge soft">版 ${esc(m.sha)}</span>` : ""} <span class="badge soft">記録 ${state.runs.filter(r => r.exp === "ai_" + m.slug).length}</span></div>
-      <div class="muted">問い：${esc(m.plan.q)}</div>
-      <div class="row"><button class="small" data-msend="${m.slug}">JupyterLite に送る</button><button class="small" data-mdl="${m.slug}">.ipynb</button><a href="${esc(nbUrl(m.slug + ".ipynb"))}" target="_blank" rel="noopener"><button class="small quiet">JupyterLite で開く（受け取り済みなら）</button></a><button class="small quiet" data-mdel="${m.slug}">消す</button></div></div>`).join("") || '<p class="muted">まだありません。</p>'}`;
-  const read = () => { d.plan = {q: el.querySelector("#m-q").value.trim(), hand: el.querySelector("#m-hand").value.trim(), machine: el.querySelector("#m-machine").value.trim(), guess: el.querySelector("#m-guess").value.trim(), name: el.querySelector("#m-name").value.trim()}; };
-  el.querySelector("#m-go").addEventListener("click", async () => {
-    read(); if (!d.plan.q || !d.plan.hand || !d.plan.machine) { toast("問い・手でやること・機械にやらせること、の 3 つは書く"); return; }
-    const st = el.querySelector("#m-status"); st.textContent = "AI がコードを書いている…"; el.querySelector("#m-go").disabled = true;
-    try { const gen = await askAIForNotebook(d.plan); const nb = buildNotebook(gen, d.plan); d.gen = gen; d.nb = nb; d.issues = checkNotebook(nb); d.sha = await nbSha(nb);
-      state.made = state.made || []; const i = state.made.findIndex(m => m.slug === gen.slug); const rec = {slug: gen.slug, title: gen.title, plan: d.plan, nb, sha: d.sha, t: now()}; if (i >= 0) state.made[i] = rec; else state.made.push(rec); saveState(); renderMake(); }
-    catch (e) { st.textContent = "作れなかった：" + e.message; el.querySelector("#m-go").disabled = false; }
-  });
-  const send = m => { outbox = {name: m.slug + ".ipynb", ipynb: m.nb}; postOutbox(); toast("送る準備ができた。JupyterLite の 00_receive.ipynb を実行"); const h = el.querySelector("#m-sendhelp"); if (h) h.style.display = "block"; };
-  const dl = m => { const blob = new Blob([JSON.stringify(m.nb, null, 1)], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = m.slug + ".ipynb"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
-  if (d.nb) { el.querySelector("#m-send").addEventListener("click", () => send({slug: d.gen.slug, nb: d.nb})); el.querySelector("#m-dl").addEventListener("click", () => dl({slug: d.gen.slug, nb: d.nb})); el.querySelector("#m-redo").addEventListener("click", () => { d.nb = null; d.gen = null; renderMake(); }); }
-  el.querySelectorAll("[data-msend]").forEach(b => b.addEventListener("click", () => { const m = state.made.find(x => x.slug === b.dataset.msend); if (m) send(m); }));
-  el.querySelectorAll("[data-mdl]").forEach(b => b.addEventListener("click", () => { const m = state.made.find(x => x.slug === b.dataset.mdl); if (m) dl(m); }));
-  el.querySelectorAll("[data-mdel]").forEach(b => b.addEventListener("click", () => { if (confirm("この実験を一覧から消す？（届いた記録は残る）")) { state.made = state.made.filter(x => x.slug !== b.dataset.mdel); saveState(); renderMake(); } }));
-}
-// JupyterLite への受け渡し：受け取りノートが want_notebook を送ってきたら、いま送る準備をしているノートを返す
+function pyStr(s) { return JSON.stringify(String(s)); }
+// JupyterLite への受け渡し（経路 2）：受け取りノート 00_receive.ipynb が want_notebook を送ってきたら、送る準備をしているノートを返す
 let outbox = null, nbChannel = null;
 function postOutbox() { if (!outbox || !nbChannel) return; nbChannel.postMessage(JSON.stringify({type: "notebook", name: outbox.name, ipynb: outbox.ipynb})); }
+const FORBID = [/import\s+(requests|urllib|socket|subprocess|shutil|http|js)\b/, /\bos\.(system|popen|remove|unlink|rmdir)\b/, /\bopen\s*\(/, /\beval\s*\(/, /\bexec\s*\(/, /!\s*pip/, /\bfetch\(/];
+async function nbSha(cells) {
+  // kg_tools._nb_sha と同じ決め方：手の結果を書くセルを除き、本文を改行でつないで SHA-256 の先頭 16 桁
+  const parts = cells.filter(c => !String(c.source).includes("自分の結果に書き換える")).map(c => String(c.source));
+  if (!(typeof crypto !== "undefined" && crypto.subtle)) return null;
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parts.join("\n")));
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+// ひな形：A の数は全部 B？／A の数はいくつ？ を N まで
+function templateCells(spec) {
+  const A = pyPred(spec.A), B = spec.B ? pyPred(spec.B) : null, N = spec.N, id = spec.id, nb = spec.notebook;
+  const cells = [];
+  cells.push({type: "markdown", source: `# ${spec.title}\n\n${spec.ask}\n\n## 手で（物理的な実験）\n\n${spec.hand_text}\n\n**記録すること**：${spec.hand_record || "見えたこと、数えたこと"}`});
+  cells.push({type: "code", source: FIRST_CELL + `\n\n# 手で見た結果（自分の結果に書き換える）\nhand_examples = ${spec.hand_examples || "[]"}   # 手で確かめた数（当てはまった数など）\nhand_note = ${pyStr(spec.hand_result || "")}`});
+  cells.push({type: "markdown", source: `## 機械で\n\n${spec.form === "count" ? `1〜N で「${A.name}」の数を数える。` : `「${A.name}の数は、全部${B.name}？」を、まず手でやった範囲で、次に N まで機械で試す。`}手の結果と食い違ったら、どちらが間違えたかを考える（機械が正しいとは限らない）。`});
+  cells.push({type: "code", source: `def is_A(n):\n    return ${A.code}\n${B ? `def is_B(n):\n    return ${B.code}\n` : ""}\nN_hand = ${spec.N_hand || 30}\nA_hand = [n for n in range(1, N_hand + 1) if is_A(n)]\nprint("手でやった範囲（1〜", N_hand, "）で「${A.name}」の数：", A_hand)\nif hand_examples:\n    print("手の例との食い違い：", sorted(set(hand_examples) ^ set(A_hand)) or "なし")\n${B ? `ex_hand = [n for n in A_hand if not is_B(n)]\nprint("そのうち「${B.name}」でないもの：", ex_hand or "なし")` : ""}`});
+  cells.push({type: "markdown", source: `## もっと先へ・予想を試す\n\n予想：${spec.guess || "（自分の言葉で書く）"}`});
+  if (spec.form === "count") cells.push({type: "code", source: `guess = ${pyStr(spec.guess || "")}\nN = ${N}\nA_all = [n for n in range(1, N + 1) if is_A(n)]\nprint(f"1〜{N} で「${A.name}」の数：{len(A_all)} 個。最初の 30 個：", A_all[:30])`});
+  else cells.push({type: "code", source: `guess = ${pyStr(spec.guess || "")}\nN = ${N}\nA_all = [n for n in range(1, N + 1) if is_A(n)]\ncounter = [n for n in A_all if not is_B(n)]\nprint(f"「${A.name}の数は、全部${B.name}」を 1〜{N} で試した：当てはまる数 {len(A_all)} 個のうち、反例", counter[:12] or "なし")\nprint("反例がなくても、N の先のことは機械には分からない")`});
+  cells.push({type: "markdown", source: `## 記録を送る\n\n手の結果・機械の結果・条件・このノートの版を地図に届ける。`});
+  cells.push({type: "code", source: spec.form === "count"
+    ? `report(${pyStr(id)}, f"1〜{N} で「${A.name}」の数は {len(A_all)} 個。手のメモ：{hand_note}",\n       data={"count": len(A_all), "first": A_all[:30], "N": N}, hand={"examples": hand_examples, "note": hand_note}, params={"N": N, "N_hand": N_hand}, notebook=${pyStr(nb)})`
+    : `report(${pyStr(id)}, f"予想「{guess}」（${A.name} → ${B.name}）は 1〜{N} で{'反例なし' if not counter else '反例あり：' + str(counter[:5])}。手のメモ：{hand_note}",\n       data={"total": len(A_all), "counter": counter[:12], "N": N}, hand={"examples": hand_examples, "note": hand_note}, params={"N": N, "N_hand": N_hand}, notebook=${pyStr(nb)})`});
+  return cells;
+}
+
+// 生成 AI：コードだけを書かせる。問い・手の結果・予想は生徒の文をそのまま渡す
+async function llmCells(spec) {
+  const sys = `あなたは中学生の「手と機械の実験室」で、Jupyter ノートの機械の部分を書く係です。生徒が「問い」「手でやったこと・見えたこと」「予想」「機械に頼むこと」を書きます。あなたはそれをそのまま使い、コードを書きます。答えや定理を先に教えないこと。
+守ること：
+- 出力は JSON だけ：{"cells":[{"type":"markdown","source":"…"},{"type":"code","source":"…"}, …]}
+- 1 つ目の code セルは必ず次の 3 行で始める（変えない）：\n${FIRST_CELL}\n  その続きに「手で見た結果」のセル内容を置く：コメント「# 手で見た結果（自分の結果に書き換える）」の下に、生徒の手の結果を Python の値として（例：hand_examples = [...]、hand_note = "..."）。この文字列「自分の結果に書き換える」は必ず入れる
+- 機械の部分は Python 標準ライブラリ＋ math, random, numpy, sympy, matplotlib.pyplot(plt) だけ。ファイル・ネットワークは使わない。計算は N ≤ 100000、ループは 1 千万回以下
+- kg_tools の道具も使える：sieve_grid(n)、factor_tree(n)/leaves(t)/show_trees([t], [題])、divisor_grid(n)、prime_race(N)、euclid_numbers(k)、factorization_str(n)
+- 必ず「手でやった範囲を機械でもやり、手の結果と照らす」セルを入れる（食い違いを表示。機械が正しいとは限らない、と書く）
+- 必ず「もっと先へ」（大きい N）と「予想を試す」（guess = "…" という文字列と、予想を式にした関数、反例を探す）を入れる。反例がなくても N の先は分からない、と書く
+- 最後の code セルは report(${JSON.stringify(spec.id)}, <一文の要約 f 文字列>, data={機械の結果（同じ条件なら同じ値）}, hand={手の結果}, params={条件}, notebook=${JSON.stringify(spec.notebook)}) で終える
+- markdown は短く、やさしい日本語。見出しは「手で」「機械で」「もっと先へ・予想を試す」「記録を送る」`;
+  const user = `題名：${spec.title}\n問い：${spec.ask}\n手でやったこと・見えたこと：${spec.hand_text}\n手の結果（数や一覧）：${spec.hand_result}\n予想：${spec.guess}\n機械に頼むこと：${spec.ask_machine}\nどこまで（N）：${spec.N}`;
+  const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {"content-type": "application/json", "x-api-key": settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"}, body: JSON.stringify({model: settings.model, max_tokens: 4000, system: sys, messages: [{role: "user", content: user}]})});
+  if (!r.ok) throw new Error("API " + r.status);
+  const data = await r.json(); const raw = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
+  const obj = JSON.parse(raw.replace(/^```(json)?/, "").replace(/```$/, "").trim());
+  if (!obj.cells || !Array.isArray(obj.cells)) throw new Error("cells がない");
+  return obj.cells.map(c => ({type: c.type === "code" ? "code" : "markdown", source: String(c.source || "")}));
+}
+function validateCells(cells, spec) {
+  const code = cells.filter(c => c.type === "code").map(c => c.source).join("\n");
+  const problems = [];
+  if (!code.includes("from kg_tools import *")) problems.push("最初のセルに from kg_tools import * がない");
+  if (!code.includes("import numpy, matplotlib, sympy")) problems.push("最初のセルに import numpy, matplotlib, sympy がない（JupyterLite で部品が読めない）");
+  if (!code.includes("自分の結果に書き換える")) problems.push("「手で見た結果（自分の結果に書き換える）」のセルがない");
+  if (!code.includes(`report(${JSON.stringify(spec.id)}`)) problems.push(`最後に report(${JSON.stringify(spec.id)}, …) がない`);
+  for (const re of FORBID) if (re.test(code)) problems.push("使ってはいけない書き方がある：" + code.match(re)[0]);
+  if (/while\s+True/.test(code)) problems.push("終わらないかもしれない繰り返し（while True）がある。読んで確かめる");
+  if (/range\(\s*\d{8,}/.test(code)) problems.push("1 千万回を超える繰り返しがある。ブラウザの中では重すぎる");
+  return problems;
+}
+function toIpynb(cells) {
+  return {cells: cells.map(c => c.type === "code" ? {cell_type: "code", execution_count: null, metadata: {}, outputs: [], source: c.source} : {cell_type: "markdown", metadata: {}, source: c.source}),
+    metadata: {kernelspec: {display_name: "Python 3 (ipykernel)", language: "python", name: "python3"}, language_info: {name: "python"}}, nbformat: 4, nbformat_minor: 5};
+}
+function cellsHtml(cells) { return (cells || []).map(c => c.type === "code" ? `<pre class="cell">${esc(c.source)}</pre>` : `<div class="md-cell">${esc(c.source)}</div>`).join(""); }
+// JupyterLite のブラウザ保存（IndexedDB）に直接書く：同じサイトなので同じ保存場所が見える。だめなら .ipynb を保存して手で入れる
+function liteStorageName() { const base = new URL(settings.liteBase.endsWith("/") ? settings.liteBase : settings.liteBase + "/", location.href).pathname; return "JupyterLite Storage - " + base; }
+function writeToLite(path, nbJson) {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") return reject(new Error("no indexedDB"));
+    const name = liteStorageName();
+    const open = (version) => {
+      const req = version ? indexedDB.open(name, version) : indexedDB.open(name);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains("files")) db.createObjectStore("files"); };
+      req.onerror = () => reject(req.error || new Error("open failed"));
+      req.onsuccess = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("files")) { const v = db.version + 1; db.close(); return open(v); }
+        const now_ = new Date().toISOString(), size = new TextEncoder().encode(JSON.stringify(nbJson)).length;
+        const rec = {name: path.split("/").pop(), path, last_modified: now_, created: now_, format: "json", mimetype: "application/json", content: nbJson, size, writable: true, type: "notebook"};
+        const tx = db.transaction("files", "readwrite"); tx.objectStore("files").put(rec, path);
+        tx.oncomplete = () => { db.close(); resolve(true); }; tx.onerror = () => { db.close(); reject(tx.error || new Error("write failed")); };
+      };
+    };
+    open();
+  });
+}
+function downloadNotebook(p) { const blob = new Blob([JSON.stringify(toIpynb(p.cells), null, 1)], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = p.notebook; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+async function deliverNotebook(p) {
+  outbox = {name: p.notebook, ipynb: toIpynb(p.cells)};        // 経路 2 の準備（受け取りノートが取りに来る）
+  try { await writeToLite("puzzles/" + p.notebook, toIpynb(p.cells)); toast("JupyterLite に置きました。開きます"); window.open(nbUrl(p.notebook), "_blank"); return "direct"; }
+  catch (e) { toast("直接は置けなかった。受け取りノート（00_receive.ipynb）で受け取るか、.ipynb を保存してアップロードしてください"); window.open(nbUrl("00_receive.ipynb"), "_blank"); return "receive"; }
+}
+const makeState = {step: "form", spec: null, cells: null, problems: [], busy: false};
+function renderMake() {
+  const el = $("#view-make"), ms = makeState, sp = ms.spec || {form: "all", A: {id: "square", args: {}}, B: {id: "divodd", args: {}}, N: 10000, N_hand: 30};
+  const predSel = (name, sel) => `<select data-p="${name}">${PY_PREDS.map(x => `<option value="${x.id}" ${x.id === sel.id ? "selected" : ""}>${x.name.replace(/\{(\w+)\}/g, "…")}</option>`).join("")}</select>` + (PY_PREDS.find(x => x.id === sel.id).args || []).map(([k, d]) => `<label> ${k} <input type="number" data-p="${name}" data-k="${k}" value="${sel.args?.[k] ?? d}" style="width:60px"></label>`).join("");
+  if (ms.step === "form") {
+    el.innerHTML = `<h2>実験を作る</h2><p class="muted">問い・手でやったこと・予想は <b>自分の言葉</b> で書く（ここは AI に任せない）。機械の部分（コード）は AI かひな形が書く。できたノートは他のパズルと同じく、手と機械を照らし、記録を地図に届ける。</p>
+      <div class="field"><label>題名（短く）</label><input type="text" id="m-title" value="${esc(sp.title || "")}" style="width:100%" placeholder="例：3 の倍数と桁の和"></div>
+      <div class="field"><label>問い（何を知りたい？）</label><textarea id="m-ask" placeholder="例：桁の和が 3 の倍数なら、その数は 3 で割り切れる？ 逆は？">${esc(sp.ask || "")}</textarea></div>
+      <div class="field"><label>手でやったこと・見えたこと</label><textarea id="m-hand" placeholder="例：1〜30 を紙に書いて、桁の和と 3 で割った余りを並べた。桁の和が 3 の倍数の数は 3, 6, 9, 12, … で、全部 3 で割り切れた">${esc(sp.hand_text || "")}</textarea></div>
+      <div class="field"><label>手の結果（数や一覧。Python の値で書けると機械がそのまま照らせる）</label><input type="text" id="m-handres" value="${esc(sp.hand_examples || "")}" style="width:100%" placeholder="例：[3, 6, 9, 12, 15, 18, 21, 24, 27, 30]"><div class="hint">手でやった範囲 <input type="number" id="m-nhand" value="${sp.N_hand || 30}" min="5" max="1000" style="width:70px"> まで</div></div>
+      <div class="field"><label>予想（自分の言葉で）</label><input type="text" id="m-guess" value="${esc(sp.guess || "")}" style="width:100%" placeholder="例：桁の和が 3 の倍数なら、いつでも 3 で割り切れる"></div>
+      <div class="field"><label>機械に頼むこと</label><input type="text" id="m-askm" value="${esc(sp.ask_machine || "")}" style="width:100%" placeholder="例：10000 まで全部調べて、外れる数があれば出す。逆も調べる"><div class="hint">どこまで（N） <input type="number" id="m-N" value="${sp.N || 10000}" min="10" max="100000" style="width:90px"></div></div>
+      <div class="field"><label>機械の部分を書くのは</label>
+        <label><input type="radio" name="m-mode" value="template" ${!settings.apiKey || sp.mode === "template" ? "checked" : ""}> ひな形（AI なし。「A の数は、全部 B？」か「A の数はいくつ？」の形）</label>
+        <label><input type="radio" name="m-mode" value="llm" ${settings.apiKey && sp.mode !== "template" ? "checked" : ""} ${settings.apiKey ? "" : "disabled"}> 生成 AI（設定に API キーが要る${settings.apiKey ? "" : "：未設定"}）</label></div>
+      <div class="box" id="m-tpl"><div class="row"><label><input type="radio" name="m-form" value="all" ${sp.form !== "count" ? "checked" : ""}> 「A の数は、全部 B？」</label><label><input type="radio" name="m-form" value="count" ${sp.form === "count" ? "checked" : ""}> 「A の数はいくつある？」</label></div>
+        <div class="row">A：${predSel("A", sp.A)}</div><div class="row" id="m-Brow">B：${predSel("B", sp.B)}</div><div class="muted">ひな形に当てはまらない実験は、生成 AI モードか、自由実験ノート（experiments/00_scratch）で。</div></div>
+      <div class="row" style="margin-top:12px"><button class="primary" id="m-go">ノートを作る</button><span class="muted" id="m-msg"></span></div>`;
+    const read = () => {
+      const rd = name => { const sel = el.querySelector(`select[data-p=${name}]`); const args = {}; el.querySelectorAll(`input[data-p=${name}]`).forEach(i => args[i.dataset.k] = +i.value); return {id: sel.value, args}; };
+      const mode = el.querySelector("input[name=m-mode]:checked").value, title = el.querySelector("#m-title").value.trim() || "わたしの実験";
+      const id = "ai_" + slugify(title.replace(/[^\x00-\x7F]/g, "")) + "_" + Date.now().toString(36).slice(-4);
+      return {title, ask: el.querySelector("#m-ask").value.trim(), hand_text: el.querySelector("#m-hand").value.trim(), hand_examples: el.querySelector("#m-handres").value.trim(), hand_result: el.querySelector("#m-handres").value.trim(), N_hand: Math.max(5, +el.querySelector("#m-nhand").value || 30), guess: el.querySelector("#m-guess").value.trim(), ask_machine: el.querySelector("#m-askm").value.trim(), N: Math.max(10, Math.min(100000, +el.querySelector("#m-N").value || 10000)), mode, form: el.querySelector("input[name=m-form]:checked").value, A: rd("A"), B: rd("B"), id, notebook: id + ".ipynb"};
+    };
+    el.querySelectorAll("select[data-p]").forEach(s => s.addEventListener("change", () => { ms.spec = read(); renderMake(); }));
+    el.querySelectorAll("input[name=m-form]").forEach(r => r.addEventListener("change", () => { const sp2 = read(); el.querySelector("#m-Brow").style.display = sp2.form === "count" ? "none" : ""; }));
+    el.querySelectorAll("input[name=m-mode]").forEach(r => r.addEventListener("change", () => { el.querySelector("#m-tpl").style.display = el.querySelector("input[name=m-mode]:checked").value === "template" ? "" : "none"; }));
+    el.querySelector("#m-tpl").style.display = el.querySelector("input[name=m-mode]:checked").value === "template" ? "" : "none";
+    el.querySelector("#m-Brow").style.display = sp.form === "count" ? "none" : "";
+    el.querySelector("#m-go").addEventListener("click", async () => {
+      const spec = read(); ms.spec = spec;
+      if (!spec.ask || !spec.hand_text) { el.querySelector("#m-msg").textContent = "問いと、手でやったことは自分で書いてください（ここは AI に任せない）"; return; }
+      if (spec.hand_examples && !/^\[[\d,\s]*\]$/.test(spec.hand_examples)) spec.hand_examples = "";   // Python の一覧として読めないものは note にだけ残す
+      el.querySelector("#m-go").disabled = true; el.querySelector("#m-msg").textContent = spec.mode === "llm" ? "生成 AI がコードを書いています…" : "ひな形から作っています…";
+      try { ms.cells = spec.mode === "llm" ? await llmCells(spec) : templateCells(spec); ms.problems = validateCells(ms.cells, spec); ms.step = "preview"; renderMake(); }
+      catch (e) { el.querySelector("#m-go").disabled = false; el.querySelector("#m-msg").textContent = "作れませんでした：" + e.message; }
+    });
+    return;
+  }
+  // preview：生徒が読んで確かめてからノートにする
+  const spec = ms.spec, ok = ms.problems.length === 0;
+  nbSha(ms.cells).then(h => { const t = el.querySelector("#m-sha"); if (t && h) t.textContent = "本文の指紋 " + h + "（実行記録の版と同じ決め方）"; });
+  el.innerHTML = `<h2>できたノートを確かめる</h2><div class="muted" id="m-sha"></div><p class="muted">${spec.mode === "llm" ? "生成 AI が書いた" : "ひな形から作った"}コード。読んで、下の 4 つを自分で確かめてから「ノートにする」。おかしければ「作り直す」。</p>
+    ${ms.problems.length ? `<div class="result">直す必要があります：${ms.problems.map(esc).join("／")}</div>` : ""}
+    ${cellsHtml(ms.cells)}
+    <div class="box" style="margin-top:12px"><h3>確かめること（自分で）</h3>
+      <label><input type="checkbox" class="m-chk"> 問いは自分が書いたものになっている</label><br>
+      <label><input type="checkbox" class="m-chk"> 「手で見た結果」のセルに、自分の結果が入っている（あとでノートの中で直せる）</label><br>
+      <label><input type="checkbox" class="m-chk"> 機械が何を数えて、何と何を照らすのか、コードを読んで分かる</label><br>
+      <label><input type="checkbox" class="m-chk"> N（どこまで）が書いてあり、「N の先は分からない」と書いてある</label></div>
+    <div class="row" style="margin-top:12px"><button class="primary" id="m-make" ${ok ? "" : "disabled"}>ノートにする（JupyterLite に置く）</button><button class="quiet" id="m-redo">作り直す</button></div>`;
+  el.querySelector("#m-redo").addEventListener("click", () => { ms.step = "form"; renderMake(); });
+  el.querySelector("#m-make").addEventListener("click", async () => {
+    const checked = Array.from(el.querySelectorAll(".m-chk")).every(c => c.checked);
+    if (!checked && !confirm("4 つの確かめが済んでいません。それでもノートにする？")) return;
+    const p = {id: spec.id, title: spec.title, ask: spec.ask, notebook: spec.notebook, made: spec.mode, model: spec.mode === "llm" ? settings.model : "", spec: {guess: spec.guess, ask_machine: spec.ask_machine, hand_text: spec.hand_text, hand_examples: spec.hand_examples, N: spec.N}, hand: {items: "（自分で用意）", steps: [spec.hand_text], record: "手の結果"}, cells: ms.cells, sha: await nbSha(ms.cells), book: [], t: now()};
+    state.mine = state.mine || []; state.mine.push(p); saveState();
+    addCard({type: "hand", text: spec.hand_text, puzzle: p.id, links: [{kind: "hand", t: now()}]});
+    if (spec.guess) addCard({type: "guess", text: spec.guess, puzzle: p.id});
+    await deliverNotebook(p);
+    ms.step = "form"; ms.spec = null; ms.cells = null; ui.puzzle = p.id; showView("door");
+  });
+}
+
 // =====================================================================
 // 設定・起動
 // =====================================================================
