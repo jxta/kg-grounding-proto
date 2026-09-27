@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>手と機械の実験室 — 数のパズルから</title>
+<style>
+  :root { --ink:#111; --ink2:#444; --ink3:#777; --line:#bbb; --line2:#ddd; --paper:#fff; --paper2:#f4f4f4; box-sizing:border-box;
+          padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:-apple-system,"Hiragino Sans","Yu Gothic","Noto Sans CJK JP","Noto Sans JP","Segoe UI",sans-serif; font-size:14px; line-height:1.6; }
+  header { display:flex; align-items:center; gap:12px; padding:8px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:15px; font-weight:600; margin:0; }
+  header .sub { color:var(--ink3); font-size:12px; }
+  header .spacer { flex:1; }
+  nav.views { display:flex; gap:2px; }
+  nav.views button { border:0; border-radius:6px; padding:5px 10px; background:transparent; color:var(--ink2); }
+  nav.views button.active { background:var(--ink); color:#fff; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { background:var(--paper); border:1px solid var(--ink); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  button:hover { background:var(--paper2); }
+  button.primary { background:var(--ink); color:#fff; }
+  button.quiet { border-color:var(--line); color:var(--ink2); }
+  button.small { padding:2px 8px; font-size:12px; }
+  input[type=text], select { border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
+  textarea { width:100%; min-height:56px; border:1px solid var(--line); border-radius:6px; padding:6px; resize:vertical; }
+  main { height:calc(100% - 46px); overflow:auto; }
+  .view { display:none; padding:16px 18px 40px; max-width:1100px; margin:0 auto; }
+  .view.active { display:block; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  .muted { color:var(--ink3); font-size:12px; }
+  h2 { font-size:16px; margin:6px 0 10px; }
+  h3 { font-size:13px; margin:14px 0 6px; color:var(--ink2); letter-spacing:.04em; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; }
+  .pz { border:1px solid var(--line2); border-radius:10px; padding:12px; cursor:pointer; }
+  .pz:hover { border-color:var(--ink); }
+  .pz svg { width:100%; height:auto; display:block; background:#fff; }
+  .pz .ask { margin-top:8px; font-size:14px; }
+  .pz .t { font-weight:600; margin-top:6px; }
+  .pzpage svg { width:100%; max-width:720px; height:auto; display:block; background:#fff; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+  .box { border:1px solid var(--line2); border-radius:10px; padding:12px 14px; }
+  .box h3 { margin-top:0; }
+  ol.steps { padding-left:20px; margin:6px 0; }
+  ol.steps li { margin:3px 0; }
+  .result { border-left:3px solid var(--ink); background:var(--paper2); padding:6px 10px; margin:8px 0; }
+  .run { border:1px solid var(--line2); border-radius:8px; padding:8px 10px; margin:6px 0; }
+  .run .h { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .badge { font-size:11px; border:1px solid var(--ink); border-radius:10px; padding:0 7px; white-space:nowrap; }
+  .badge.ok { background:var(--ink); color:#fff; }
+  .badge.ng { border-style:dashed; }
+  .badge.soft { border-color:var(--line); color:var(--ink2); }
+  code { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; background:var(--paper2); padding:0 4px; border-radius:4px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:6px 0; background:#fff; }
+  .card.q { border-style:dashed; } .card.rule { border-width:2px; } .card.hand { border-left:4px solid var(--ink); }
+  .card .head { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .card .type { font-size:11px; border:1px solid var(--ink); border-radius:10px; padding:0 6px; }
+  .card .txt { margin:3px 0; white-space:pre-wrap; }
+  .card .ops { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+  .card .ops button { font-size:11px; padding:1px 6px; }
+  .card .ev { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+  .kids { margin-left:14px; border-left:2px solid var(--line2); padding-left:8px; }
+  .seeds { display:flex; gap:4px; flex-wrap:wrap; margin:4px 0; }
+  .seeds button { font-size:11px; padding:1px 6px; }
+  table.tbl { border-collapse:collapse; font-size:12px; width:100%; }
+  table.tbl td, table.tbl th { border-bottom:1px solid var(--line2); padding:4px 6px; text-align:left; vertical-align:top; }
+  table.tbl th { color:var(--ink2); font-weight:600; }
+  .toast { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
+  .toast.show { opacity:1; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink:#eee; --ink2:#ccc; --ink3:#999; --line:#555; --line2:#3a3a3a; --paper:#151515; --paper2:#222; }
+    :root:not([data-theme="light"]) svg { background:#fff; }
+    :root:not([data-theme="light"]) .card { background:#fff; color:#111; }
+    :root:not([data-theme="light"]) .card button, :root:not([data-theme="light"]) .card select { color:#111; background:#fff; border-color:#111; }
+    :root:not([data-theme="light"]) .card .type, :root:not([data-theme="light"]) .card .badge { border-color:#111; color:#111; }
+    :root:not([data-theme="light"]) .card .badge.ok { background:#111; color:#fff; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>手と機械の実験室</h1><span class="sub">数のパズル → 手で → ノートで → 記録が地図につく</span>
+  <span class="spacer"></span>
+  <nav class="views">
+    <button data-view="door" class="active">パズル</button>
+    <button data-view="runs">記録</button>
+    <button data-view="cards">わたしの地図</button>
+    <button data-view="set">設定</button>
+  </nav>
+</header>
+<main>
+  <div class="view active" id="view-door"></div>
+  <div class="view" id="view-runs"></div>
+  <div class="view" id="view-cards"></div>
+  <div class="view" id="view-set"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================================
+// 道具
+// =====================================================================
+const STORE = "kg-hybrid:v1", SETTINGS = "kg-hybrid:settings";
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const now = () => { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const toast = t => { const e = $("#toast"); e.textContent = t; e.classList.add("show"); clearTimeout(e._h); e._h = setTimeout(() => e.classList.remove("show"), 2600); };
+const stable = o => JSON.stringify(o, (k, v) => (v && typeof v === "object" && !Array.isArray(v)) ? Object.keys(v).sort().reduce((a, kk) => (a[kk] = v[kk], a), {}) : v);
+let _sieve = null;
+function sieveUpTo(N) { if (_sieve && _sieve.length > N) return _sieve; const s = new Uint8Array(N + 1); s.fill(1); s[0] = 0; s[1] = 0; for (let i = 2; i * i <= N; i++) if (s[i]) for (let j = i * i; j <= N; j += i) s[j] = 0; _sieve = s; return s; }
+const isPrime = n => n >= 2 && sieveUpTo(Math.max(n, 1000))[n] === 1;
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const twoSq = n => { for (let a = 0; a * a * 2 <= n; a++) { const b2 = n - a * a, b = Math.round(Math.sqrt(b2)); if (b * b === b2) return true; } return false; };
+
+// =====================================================================
+// パズル（入口）：問いと、手でやること、ノート。答えは書かない
+// =====================================================================
+const SVG_NS = "http://www.w3.org/2000/svg";
+function pic_lockers() {
+  const L = 30, K = 12, cell = 22, parts = []; const open = Array(L + 1).fill(false);
+  for (let k = 1; k <= K; k++) { for (let j = k; j <= L; j += k) open[j] = !open[j]; for (let j = 1; j <= L; j++) parts.push(`<rect x="${(j-1)*cell+1}" y="${(k-1)*cell+1}" width="${cell-2}" height="${cell-2}" rx="3" fill="${open[j] ? "#111" : "#fff"}" stroke="#ddd" stroke-width=".5"></rect>`); parts.push(`<text x="${L*cell+6}" y="${(k-1)*cell+15}" font-size="10" fill="#777">${k} 人目</text>`); }
+  return `<svg viewBox="0 0 ${L*cell+50} ${K*cell}" xmlns="${SVG_NS}"><rect width="${L*cell+50}" height="${K*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function pic_tiles() {
+  const parts = []; let x = 6; const u = 9;
+  for (const n of [12, 13, 16]) { const rects = []; for (let a = 1; a * a <= n; a++) if (n % a === 0) rects.push([a, n / a]); parts.push(`<text x="${x}" y="12" font-size="11" fill="#777">${n} 枚</text>`); let y = 18;
+    for (const [a, b] of rects) { for (let i = 0; i < a; i++) for (let j = 0; j < b; j++) parts.push(`<rect x="${x + j*u}" y="${y + i*u}" width="${u-1}" height="${u-1}" fill="#111"></rect>`); y += a * u + 8; }
+    x += Math.max(...rects.map(r => r[1])) * u + 24; }
+  return `<svg viewBox="0 0 ${x} 150" xmlns="${SVG_NS}"><rect width="${x}" height="150" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function pic_billiard(m = 3, n = 5) {
+  const u = 40, pts = [[0, 0]]; let x = 0, y = 0, dx = 1, dy = 1; let guard = 0;
+  while (guard++ < 500) { x += dx; y += dy; pts.push([x, y]); const ax = x === 0 || x === n, ay = y === 0 || y === m; if (ax && ay) break; if (ax) dx = -dx; if (ay) dy = -dy; }
+  const grid = []; for (let i = 0; i <= n; i++) grid.push(`<line x1="${10+i*u}" y1="10" x2="${10+i*u}" y2="${10+m*u}" stroke="#ddd"></line>`); for (let j = 0; j <= m; j++) grid.push(`<line x1="10" y1="${10+j*u}" x2="${10+n*u}" y2="${10+j*u}" stroke="#ddd"></line>`);
+  const path = pts.map((p, i) => (i ? "L" : "M") + (10 + p[0]*u) + "," + (10 + (m - p[1])*u)).join(" ");
+  return `<svg viewBox="0 0 ${n*u+20} ${m*u+20}" xmlns="${SVG_NS}"><rect width="${n*u+20}" height="${m*u+20}" fill="#fff"></rect>${grid.join("")}<rect x="10" y="10" width="${n*u}" height="${m*u}" fill="none" stroke="#111" stroke-width="1.5"></rect><path d="${path}" fill="none" stroke="#111" stroke-width="2"></path><circle cx="10" cy="${10+m*u}" r="5" fill="#111"></circle></svg>`;
+}
+function pic_stamps(a = 3, b = 5, upto = 24) {
+  const ok = Array(upto + 1).fill(false); ok[0] = true; for (let x = 1; x <= upto; x++) ok[x] = (x >= a && ok[x - a]) || (x >= b && ok[x - b]);
+  const cell = 28, parts = []; for (let x = 1; x <= upto; x++) parts.push(`<rect x="${(x-1)*cell+1}" y="1" width="${cell-2}" height="${cell-2}" rx="4" fill="${ok[x] ? "#111" : "#fff"}" stroke="#bbb" stroke-width=".6"></rect><text x="${(x-1)*cell+cell/2}" y="${cell/2+4}" text-anchor="middle" font-size="11" fill="${ok[x] ? "#fff" : "#111"}">${x}</text>`);
+  return `<svg viewBox="0 0 ${upto*cell} ${cell+2}" xmlns="${SVG_NS}"><rect width="${upto*cell}" height="${cell+2}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+function pic_twosq(N = 60) {
+  const cols = 10, cell = 30, parts = [];
+  for (let n = 1; n <= N; n++) { const i = n - 1, x = (i % cols) * cell, y = Math.floor(i / cols) * cell, on = twoSq(n); parts.push(`<rect x="${x+1}" y="${y+1}" width="${cell-2}" height="${cell-2}" rx="4" fill="${on ? "#111" : "#fff"}" stroke="#ddd" stroke-width=".5"></rect><text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="11" fill="${on ? "#fff" : "#999"}">${n}</text>`); }
+  return `<svg viewBox="0 0 ${cols*cell} ${Math.ceil(N/cols)*cell}" xmlns="${SVG_NS}"><rect width="${cols*cell}" height="${Math.ceil(N/cols)*cell}" fill="#fff"></rect>${parts.join("")}</svg>`;
+}
+const PUZZLES = [
+  {id: "p1_lockers", title: "100 個のロッカー", pic: pic_lockers, notebook: "p1_lockers.ipynb",
+   ask: "閉まったロッカーが 100 個。k 人目は k の倍数のロッカーを開け閉めする。100 人が通ったあと、開いているのはどれ？",
+   hand: {items: "カード 20 枚（トランプでも紙でも）", steps: ["裏向きに 1 列に並べ、左から 1〜20 番とする", "1 人目は全部めくる。2 人目は 2, 4, 6, … 番をめくり返す。3 人目は 3, 6, 9, … 番", "20 人目まで。表になっているカードの番号を書く"], record: "表のカードの番号。何番が何回めくられたか"},
+   book: ["divisor_count", "square"]},
+  {id: "p2_tiles", title: "タイルで長方形", pic: pic_tiles, notebook: "p2_tiles.ipynb",
+   ask: "同じタイル n 枚で長方形を作る。何通りできる？ 1 通りしかできない枚数は？ 正方形ができる枚数は？",
+   hand: {items: "正方形のタイル 36 枚（消しゴム、碁石、おはじき、折り紙を切ったもの）", steps: ["12 枚で作れる長方形を全部作り、縦 × 横 を書く", "13 枚、16 枚、24 枚、36 枚でも", "1 通りしかできなかった枚数、正方形ができた枚数に印"], record: "枚数ごとの長方形の一覧"},
+   book: ["divisor_multiple", "prime", "divisor_count", "square"]},
+  {id: "p3_billiard", title: "ビリヤードの玉", pic: pic_billiard, notebook: "p3_billiard.ipynb",
+   ask: "縦 m・横 n の台の左下から 45° に玉を打つ。壁で跳ね返り、角に着くと止まる。どの角に着く？ 何回跳ね返る？ 台の大きさを変えると？",
+   hand: {items: "方眼紙と鉛筆", steps: ["3 × 5 の長方形を描き、左下からマス目の対角線をなぞって線を引く。壁で折り返す", "角に着いたら終わり。着いた角と、跳ね返った回数を書く", "4 × 6、4 × 7、6 × 9、5 × 5 でも"], record: "台の大きさ、着いた角、跳ね返りの回数。線が通らなかったマス"},
+   book: ["gcd_lcm"]},
+  {id: "p4_stamps", title: "3 円切手と 5 円切手", pic: pic_stamps, notebook: "p4_stamps.ipynb",
+   ask: "3 円と 5 円の切手だけで、作れない金額は？ いちばん大きい「作れない金額」は？ 4 円と 6 円なら？",
+   hand: {items: "2 種類のコイン（またはおはじき 2 色）", steps: ["片方を 3 円、もう片方を 5 円とする。1 円から順に、ぴったり作れるか試す", "作れない金額に印。20 円まで", "4 円と 6 円でも同じことを"], record: "作れない金額の一覧（3 と 5、4 と 6）。「ここから先は全部作れる」と言えそうな所"},
+   book: ["gcd_lcm"]},
+  {id: "p5_two_squares", title: "タイルを正方形 2 つに", pic: pic_twosq, notebook: "p5_two_squares.ipynb",
+   ask: "タイル n 枚を全部使って、正方形 2 つ（片方は 1 枚や 0 枚でもよい）に並べられる？ 5 枚なら 4 + 1。3 枚は？ 7 枚は？",
+   hand: {items: "タイル 30 枚", steps: ["1 枚から 30 枚まで、正方形 2 つ（または 1 つ）に並べられるか試す", "できた枚数、できなかった枚数を分けて書く", "できなかった枚数のうち素数はどれ？"], record: "できた枚数の一覧"},
+   book: ["prime", "square", "prime_race"]},
+];
+const pz = id => PUZZLES.find(p => p.id === id);
+const BOOK = {divisor_multiple: "約数と倍数", composite: "合成数", prime: "素数", factorization: "素因数分解", one_not_prime: "1は素数ではない", sieve: "エラトステネスの篩", exponent: "累乗の表し方", trial_division: "素因数分解の手順", uniqueness: "分解はただ一通り（一意性）", square: "平方数", gcd_lcm: "最大公約数・最小公倍数", divisor_count: "約数の個数", infinite_primes: "素数は無限にある", prime_race: "素数の偏り（4で割った余り）"};
+const TYPES = {q: "問い", notice: "気づき", guess: "予想", rule: "きまり", hand: "手でやった"};
+const SEEDS = [["もっと先", c => `「${c.text}」は、もっと大きい数でも同じ？`], ["変えてみる", c => `「${c.text}」の条件を変えたら（3 と 5 を 4 と 7 に、台を 5 × 8 に…）どうなる？`], ["逆は？", c => `「${c.text}」の逆は言える？`], ["なぜ？", c => `「${c.text}」は、なぜそうなる？ 手でやったときに何が起きていた？`], ["反例さがし", c => `「${c.text}」が外れる例はある？ 機械に探させる`], ["別のパズルと", c => `「${c.text}」は、別のパズルで見たことと同じ？`]];
+
+// =====================================================================
+// 状態：カード（地図）と記録（ノートからの来歴つき結果）
+// =====================================================================
+let state, settings, ui = {view: "door", puzzle: null, selected: null};
+function newState(name) { return {name, created: now(), cards: [], runs: [], log: []}; }
+function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) { s.runs = s.runs || []; return s; } } catch (e) {} return null; }
+function saveState() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+function loadSettings() { const d = {liteBase: "../", liteUI: "notebooks", runsBase: "../runs/"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
+function saveSettings() { try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} }
+let _cid = 0;
+const nbUrl = file => { const b = settings.liteBase.endsWith("/") ? settings.liteBase : settings.liteBase + "/"; return `${b}${settings.liteUI}/index.html?path=puzzles/${file}`; };
+const runUrl = id => { const b = settings.runsBase.endsWith("/") ? settings.runsBase : settings.runsBase + "/"; return `${b}${id}.html`; };
+const canonUrl = id => { const b = settings.runsBase.endsWith("/") ? settings.runsBase : settings.runsBase + "/"; return `${b}evidence_${id}.json`; };
+function addCard(c) { const card = Object.assign({id: "c" + Date.now().toString(36) + (_cid++), type: "notice", text: "", puzzle: ui.puzzle, parent: null, links: [], book: null, note: "", status: "", t: now()}, c); state.cards.push(card); saveState(); return card; }
+const cardById = id => state.cards.find(c => c.id === id);
+const runById = id => state.runs.find(r => r.id === id);
+
+// 記録の照合：同じノート・同じ条件の記録どうしで、結果（data）が同じか。公開の記録（CI が実行したもの）とも比べる
+const canon = {};
+async function fetchCanon(exp) {
+  if (canon[exp] !== undefined) return canon[exp];
+  try { const r = await fetch(canonUrl(exp), {cache: "no-store"}); canon[exp] = r.ok ? await r.json() : null; } catch (e) { canon[exp] = null; }
+  return canon[exp];
+}
+function compareRuns(a, b) {
+  if (!a || !b) return null;
+  const sameNb = a.provenance?.nb_sha && b.provenance?.nb_sha && a.provenance.nb_sha === b.provenance.nb_sha;
+  const sameParams = stable(a.params || {}) === stable(b.params || {});
+  const sameData = stable(a.data || {}) === stable(b.data || {});
+  return {sameNb, sameParams, sameData};
+}
+function receiveRun(msg, source) {
+  const run = Object.assign({id: "r" + Date.now().toString(36) + (_cid++), received: now(), source: source || "notebook"}, msg);
+  state.runs.push(run); saveState();
+  fetchCanon(run.exp).then(() => { if (ui.view === "runs") renderRuns(); if (ui.view === "door" && ui.puzzle) renderPuzzle(ui.puzzle); });
+  if (ui.view === "runs") renderRuns(); else if (ui.view === "door" && ui.puzzle === run.exp) renderPuzzle(run.exp);
+  toast(`記録が届きました：${(pz(run.exp) || {title: run.exp}).title}`);
+  return run;
+}
+function runBadges(run) {
+  const b = [];
+  const c = canon[run.exp];
+  if (c) { const cmp = compareRuns(run, c); b.push(`<span class="badge ${cmp.sameNb ? "ok" : "ng"}" title="公開記録のノートと同じ版か">${cmp.sameNb ? "ノートは公開と同じ版" : "ノートの版がちがう"}</span>`); if (cmp.sameParams) b.push(`<span class="badge ${cmp.sameData ? "ok" : "ng"}">${cmp.sameData ? "結果は公開の記録と一致" : "結果が公開の記録とちがう"}</span>`); else b.push(`<span class="badge soft">条件が公開の記録とちがう</span>`); }
+  else if (c === null) b.push(`<span class="badge soft">公開の記録は取得できず</span>`);
+  const prev = state.runs.filter(r => r.id !== run.id && r.exp === run.exp && stable(r.params || {}) === stable(run.params || {}) && r.received < run.received).pop();
+  if (prev) { const cmp = compareRuns(run, prev); b.push(`<span class="badge ${cmp.sameData ? "ok" : "ng"}">${cmp.sameData ? "前回の自分の記録と一致" : "前回の自分の記録とちがう"}</span>`); }
+  if (run.hand) b.push(`<span class="badge soft">手の結果つき</span>`);
+  return b.join(" ");
+}
+
+// =====================================================================
+// 入口：パズル一覧 → パズルの頁（絵・問い／手で／ノートで／気づき）
+// =====================================================================
+function renderDoor() {
+  const el = $("#view-door");
+  if (ui.puzzle) return renderPuzzle(ui.puzzle);
+  el.innerHTML = `<h2>数のパズル</h2><p class="muted">答えは書いていない。まず絵を見て、次に手で（物を動かして）、それからノートで（機械に手伝わせて）。分かったことは自分の言葉で地図に。</p>
+    <div class="grid">${PUZZLES.map(p => `<div class="pz" data-id="${p.id}">${p.pic()}<div class="t">${esc(p.title)}</div><div class="ask">${esc(p.ask)}</div></div>`).join("")}</div>`;
+  el.querySelectorAll(".pz").forEach(d => d.addEventListener("click", () => { ui.puzzle = d.dataset.id; renderPuzzle(ui.puzzle); }));
+}
+function renderPuzzle(id) {
+  const el = $("#view-door"), p = pz(id), runs = state.runs.filter(r => r.exp === id), cards = state.cards.filter(c => c.puzzle === id);
+  fetchCanon(id).then(c => { if (c && ui.puzzle === id) { const box = el.querySelector("#pz-runs"); if (box) box.innerHTML = runsHtml(runs); } });
+  el.innerHTML = `<div class="pzpage"><div class="row"><button class="quiet small" id="pz-back">← パズル一覧</button></div>
+    <h2>${esc(p.title)}</h2>${p.pic()}<p style="font-size:15px">${esc(p.ask)}</p>
+    <div class="cols">
+      <div class="box"><h3>手で</h3><div><b>用意するもの</b>：${esc(p.hand.items)}</div><ol class="steps">${p.hand.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="muted">記録すること：${esc(p.hand.record)}</div>
+        <div class="row"><button class="primary small" id="pz-hand">手でやったことを書く</button></div>
+        ${cards.filter(c => c.type === "hand").map(c => `<div class="result">${esc(c.text)} <span class="muted">${esc(c.t)}</span></div>`).join("")}</div>
+      <div class="box"><h3>ノートで</h3><div class="muted">手の結果をノートに書き込み、機械と照らし合わせ、もっと先まで試す。最後のセルで記録（結果・条件・ノートの版）がここに届く。</div>
+        <div class="row"><a href="${esc(nbUrl(p.notebook))}" target="_blank" rel="noopener"><button class="small">ノートを開く（JupyterLite）</button></a><a href="${esc(runUrl(id))}" target="_blank" rel="noopener"><button class="small quiet">公開の実行記録を見る</button></a></div>
+        <div class="muted">手元の Jupyter で動かした場合は、できた <code>evidence_${esc(id)}.json</code> を「記録」の頁で読み込む。</div>
+        <h3>届いた記録（${runs.length}）</h3><div id="pz-runs">${runsHtml(runs)}</div></div>
+    </div>
+    <div class="box" style="margin-top:14px"><h3>気づき・予想・きまり</h3>
+      <div class="row"><button class="small" data-new="notice">気づき</button><button class="small" data-new="q">問い</button><button class="small" data-new="guess">予想</button><button class="small" data-new="rule">きまり</button></div>
+      ${cards.filter(c => c.type !== "hand").map(cardHtml).join("") || '<p class="muted">まだありません。</p>'}</div></div>`;
+  el.querySelector("#pz-back").addEventListener("click", () => { ui.puzzle = null; renderDoor(); });
+  el.querySelector("#pz-hand").addEventListener("click", () => { const t = prompt(`${p.title}：手でやって見たこと（何を使って、何が起きた？ 自分の言葉で）`, ""); if (t && t.trim()) { addCard({type: "hand", text: t.trim(), puzzle: id, links: [{kind: "hand", t: now()}]}); renderPuzzle(id); } });
+  el.querySelectorAll("[data-new]").forEach(b => b.addEventListener("click", () => { const t = prompt({notice: "気づき（自分の言葉で）", q: "問い", guess: "予想（あとで機械に試させる）", rule: "きまり（理由も書けたら書く）"}[b.dataset.new], ""); if (t && t.trim()) { addCard({type: b.dataset.new, text: t.trim(), puzzle: id}); renderPuzzle(id); } }));
+  bindCardOps(el, () => renderPuzzle(id));
+  bindRunOps(el, () => renderPuzzle(id));
+}
+function runsHtml(runs) {
+  if (!runs.length) return '<p class="muted">まだ届いていません。ノートの最後のセルを実行すると届きます。</p>';
+  return runs.slice().reverse().map(r => `<div class="run" data-run="${r.id}"><div class="h"><b>${esc(r.provenance?.t || r.t)}</b> ${runBadges(r)}</div>
+    <div>${esc(r.summary)}</div>
+    <div class="muted">ノート <code>${esc(r.provenance?.notebook || "?")}</code> 版 <code>${esc(r.provenance?.nb_sha || "?")}</code>／${esc(r.provenance?.platform || "?")}／条件 <code>${esc(JSON.stringify(r.params || {}))}</code></div>
+    <div class="row"><button class="small" data-attach="${r.id}">この記録をカードにつける</button><a href="${esc(nbUrl((pz(r.exp) || {}).notebook || ""))}" target="_blank" rel="noopener"><button class="small quiet">同じノートをもう一度</button></a><button class="small quiet" data-rundel="${r.id}">消す</button></div></div>`).join("");
+}
+function bindRunOps(el, rerender) {
+  el.querySelectorAll("[data-attach]").forEach(b => b.addEventListener("click", () => {
+    const r = runById(b.dataset.attach); const cands = state.cards.filter(c => c.puzzle === r.exp && c.type !== "hand");
+    const list = cands.map((c, i) => `${i + 1}: [${TYPES[c.type]}] ${c.text}`).join("\n");
+    const t = prompt(`この記録をどのカードにつける？（番号。0 で新しい気づきカードを作る）\n${list || "（まだカードがない：0 で新しく作る）"}`, cands.length ? "1" : "0");
+    if (t === null) return; const i = +t;
+    let card = i >= 1 && i <= cands.length ? cands[i - 1] : null;
+    if (!card) { const txt = prompt("新しい気づきカード（自分の言葉で。記録の文をそのまま写さない）", ""); if (!txt || !txt.trim()) return; card = addCard({type: "notice", text: txt.trim(), puzzle: r.exp}); }
+    card.links.push({kind: "run", run: r.id, t: now()}); if (!card.links.some(l => l.kind === "notebook")) card.links.push({kind: "notebook", file: (pz(r.exp) || {}).notebook, t: now()}); saveState(); rerender(); toast("カードに記録をつけました");
+  }));
+  el.querySelectorAll("[data-rundel]").forEach(b => b.addEventListener("click", () => { if (!confirm("この記録を消す？（カードについているリンクも外れる）")) return; state.runs = state.runs.filter(r => r.id !== b.dataset.rundel); state.cards.forEach(c => c.links = c.links.filter(l => l.run !== b.dataset.rundel)); saveState(); rerender(); }));
+}
+
+// =====================================================================
+// 記録の頁：届いた記録の一覧、照合、ファイルからの読み込み
+// =====================================================================
+function renderRuns() {
+  const el = $("#view-runs"), runs = state.runs.slice().reverse();
+  PUZZLES.forEach(p => fetchCanon(p.id));
+  el.innerHTML = `<h2>記録</h2><p class="muted">ノートの最後のセルから届いた記録。結果（data）と条件（params）と、ノート本文の指紋（nb_sha）が入っている。同じ版のノートを同じ条件で動かせば同じ結果になる——それが再現できる記録。公開の記録（CI が同じノートを実行したもの）とも照らす。</p>
+    <div class="row"><label><button class="small" onclick="this.nextElementSibling.click()">記録ファイル（evidence_*.json）を読み込む</button><input type="file" id="r-import" accept="application/json" multiple style="display:none"></label><span class="muted">手元の Jupyter で動かしたとき用</span></div>
+    ${runs.length ? runs.map(r => `<div class="run" data-run="${r.id}"><div class="h"><b>${esc((pz(r.exp) || {title: r.exp}).title)}</b> <span class="muted">${esc(r.provenance?.t || r.t)}</span> ${runBadges(r)}</div>
+      <div>${esc(r.summary)}</div>
+      <details><summary class="muted">中身</summary><table class="tbl"><tr><th>ノート</th><td><code>${esc(r.provenance?.notebook || "?")}</code> 版 <code>${esc(r.provenance?.nb_sha || "?")}</code>（${esc(r.provenance?.platform || "?")}, Python ${esc(r.provenance?.python || "?")}）</td></tr>
+        <tr><th>条件</th><td><code>${esc(JSON.stringify(r.params || {}))}</code></td></tr>
+        <tr><th>手</th><td><code>${esc(JSON.stringify(r.hand || null))}</code></td></tr>
+        <tr><th>機械</th><td><code>${esc(JSON.stringify(r.data || {})).slice(0, 600)}</code></td></tr></table></details>
+      <div class="row"><button class="small" data-attach="${r.id}">この記録をカードにつける</button><a href="${esc(nbUrl((pz(r.exp) || {}).notebook || ""))}" target="_blank" rel="noopener"><button class="small quiet">同じノートをもう一度</button></a><a href="${esc(runUrl(r.exp))}" target="_blank" rel="noopener"><button class="small quiet">公開の実行記録</button></a><button class="small quiet" data-rundel="${r.id}">消す</button></div></div>`).join("") : '<p class="muted">まだ記録はありません。パズルの頁からノートを開き、最後のセルまで実行すると届きます。</p>'}`;
+  el.querySelector("#r-import").addEventListener("change", ev => { const files = Array.from(ev.target.files || []); let n = 0; Promise.all(files.map(f => f.text().then(t => { const o = JSON.parse(t); if (o && o.type === "evidence") { receiveRun(o, "file"); n++; } }).catch(() => {}))).then(() => { toast(`${n} 件読み込みました`); renderRuns(); }); });
+  bindRunOps(el, renderRuns);
+}
+
+// =====================================================================
+// わたしの地図：カードと、その接地リンク（手・記録・ノート・公開記録・教科書の言葉）
+// =====================================================================
+function cardHtml(c) {
+  const ev = c.links.map(l => l.kind === "hand" ? `<span class="badge soft">手 ${esc(l.t)}</span>` : l.kind === "run" ? (runById(l.run) ? `<span class="badge ${(() => { const r = runById(l.run), k = canon[r.exp]; const cmp = k ? compareRuns(r, k) : null; return cmp && cmp.sameParams && cmp.sameData ? "ok" : ""; })()}" title="ノートの実行記録">記録 ${esc(runById(l.run).provenance?.t || "")}（版 ${esc(runById(l.run).provenance?.nb_sha || "?")}）</span>` : `<span class="badge ng">記録（消えている）</span>`) : l.kind === "notebook" ? `<a href="${esc(nbUrl(l.file))}" target="_blank" rel="noopener"><span class="badge soft">ノート ${esc(l.file)}</span></a>` : "").join(" ");
+  return `<div class="card ${c.type === "q" ? "q" : c.type === "rule" ? "rule" : c.type === "hand" ? "hand" : ""}" data-id="${c.id}">
+    <div class="head"><span class="type">${TYPES[c.type]}</span>${c.puzzle && pz(c.puzzle) ? `<span class="muted">${esc(pz(c.puzzle).title)}</span>` : ""}${c.status ? `<span class="badge soft">${esc(c.status)}</span>` : ""}<span class="muted">${esc(c.t)}</span></div>
+    <div class="txt">${esc(c.text)}</div>${c.note ? `<div class="muted">わけ・メモ：${esc(c.note)}</div>` : ""}${c.book ? `<div class="muted">教科書ではたぶん「${esc(BOOK[c.book])}」</div>` : ""}
+    <div class="ev">${ev || '<span class="muted">接地：まだ</span>'}</div>
+    <div class="ops"><button data-op="seed" data-id="${c.id}">問いの種</button><button data-op="edit" data-id="${c.id}">書き直す</button><button data-op="note" data-id="${c.id}">わけ・メモ</button><button data-op="status" data-id="${c.id}">状態</button><button data-op="book" data-id="${c.id}">教科書では？</button>${c.puzzle ? `<button data-op="nb" data-id="${c.id}">ノートを開く</button>` : ""}<button data-op="del" data-id="${c.id}" class="quiet">消す</button></div>
+    <div class="seeds" id="seeds-${c.id}"></div></div>`;
+}
+function bindCardOps(el, rerender) {
+  el.querySelectorAll("[data-op]").forEach(b => b.addEventListener("click", () => {
+    const c = cardById(b.dataset.id), op = b.dataset.op;
+    if (op === "seed") { const box = el.querySelector(`#seeds-${c.id}`); box.innerHTML = SEEDS.map(([nm], i) => `<button data-seed="${i}">${nm}</button>`).join(""); box.querySelectorAll("button").forEach(sb => sb.addEventListener("click", () => { const [nm, fn] = SEEDS[+sb.dataset.seed]; const t = prompt(`問いの種「${nm}」：自分の言葉で`, fn(c)); if (t && t.trim()) { addCard({type: "q", text: t.trim(), puzzle: c.puzzle, parent: c.id}); rerender(); } })); }
+    else if (op === "edit") { const t = prompt("書き直す", c.text); if (t !== null && t.trim()) { c.text = t.trim(); saveState(); rerender(); } }
+    else if (op === "note") { const t = prompt("わけ・メモ（なぜそうなる？ 手で見たことと機械の結果、どうつながる？）", c.note || ""); if (t !== null) { c.note = t.trim(); saveState(); rerender(); } }
+    else if (op === "status") { const t = prompt("状態（例：手で 20 まで／機械で 10000 まで反例なし／反例 36 で外れ／わけが言える）", c.status || ""); if (t !== null) { c.status = t.trim(); saveState(); rerender(); } }
+    else if (op === "book") { const keys = Object.keys(BOOK); const t = prompt("教科書の地図では、これに近いのはどれ？（番号。0 でなし）\n" + keys.map((k, i) => `${i + 1}: ${BOOK[k]}`).join("\n"), c.book ? String(keys.indexOf(c.book) + 1) : "0"); if (t !== null) { const i = +t; c.book = i >= 1 && i <= keys.length ? keys[i - 1] : null; saveState(); rerender(); } }
+    else if (op === "nb") { const p = pz(c.puzzle); if (p) window.open(nbUrl(p.notebook), "_blank"); }
+    else if (op === "del") { if (confirm("このカードを消す？")) { state.cards = state.cards.filter(x => x.id !== c.id); state.cards.forEach(x => { if (x.parent === c.id) x.parent = c.parent; }); saveState(); rerender(); } }
+  }));
+}
+function renderCards() {
+  const el = $("#view-cards"), cards = state.cards;
+  const kids = id => cards.filter(c => c.parent === id);
+  const one = c => cardHtml(c) + (kids(c.id).length ? `<div class="kids">${kids(c.id).map(one).join("")}</div>` : "");
+  const roots = cards.filter(c => !c.parent || !cardById(c.parent));
+  const grounded = cards.filter(c => c.links.some(l => l.kind === "run") && c.links.some(l => l.kind === "hand" || cards.some(h => h.type === "hand" && h.puzzle === c.puzzle)));
+  el.innerHTML = `<h2>${esc(state.name)}の地図</h2><p class="muted">カードは自分の言葉。カードの下の印が「接地」——手でやった記録、ノートの実行記録（版と条件つき）、ノートそのもの、教科書の言葉。手と機械の両方がついたカードは、誰かが同じノートを同じ条件で動かして確かめられる。</p>
+    <div class="row"><button class="small" data-new="notice">気づき</button><button class="small" data-new="q">問い</button><button class="small" data-new="guess">予想</button><button class="small" data-new="rule">きまり</button></div>
+    ${roots.map(one).join("") || '<p class="muted">まだ何もない。それでいい。パズルの頁から始まる。</p>'}
+    <h3>教科書の言葉との結びつき</h3><ul style="padding-left:18px">${Object.entries(BOOK).map(([k, v]) => { const cs = cards.filter(c => c.book === k); return `<li>${cs.length ? `<b>${esc(v)}</b> ← ${cs.map(c => `「${esc(c.text)}」`).join("、")}` : `<span class="muted">${esc(v)}</span>`}</li>`; }).join("")}</ul>
+    <h3>保存</h3><div class="row"><button class="small" id="c-export">JSON に書き出す（カードと記録）</button><label><button class="small quiet" onclick="this.nextElementSibling.click()">読み込む</button><input type="file" id="c-import" accept="application/json" style="display:none"></label></div>`;
+  el.querySelectorAll("[data-new]").forEach(b => b.addEventListener("click", () => { const t = prompt({notice: "気づき（自分の言葉で）", q: "問い", guess: "予想", rule: "きまり"}[b.dataset.new], ""); if (t && t.trim()) { addCard({type: b.dataset.new, text: t.trim(), puzzle: null}); renderCards(); } }));
+  bindCardOps(el, renderCards);
+  el.querySelector("#c-export").addEventListener("click", () => { const blob = new Blob([JSON.stringify(state, null, 1)], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "my_lab.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
+  el.querySelector("#c-import").addEventListener("change", ev => { const f = ev.target.files[0]; if (!f) return; f.text().then(t => { const s = JSON.parse(t); if (!s.cards) throw 0; s.runs = s.runs || []; state = s; saveState(); renderCards(); toast("読み込みました"); }).catch(() => toast("読み込めませんでした")); });
+}
+
+// =====================================================================
+// 設定・起動
+// =====================================================================
+function renderSettings() {
+  const el = $("#view-set");
+  el.innerHTML = `<h2>設定</h2><div>名前</div><input type="text" id="s-name" value="${esc(state.name)}" style="width:100%">
+    <h3>ノート（JupyterLite）</h3><div>JupyterLite の場所</div><input type="text" id="s-base" value="${esc(settings.liteBase)}" style="width:100%">
+    <div class="row"><label><input type="radio" name="s-ui" value="notebooks" ${settings.liteUI === "notebooks" ? "checked" : ""}> Notebook 画面</label><label><input type="radio" name="s-ui" value="lab" ${settings.liteUI === "lab" ? "checked" : ""}> Lab 画面</label></div>
+    <div>公開の実行記録の場所（CI が置く runs/）</div><input type="text" id="s-runs" value="${esc(settings.runsBase)}" style="width:100%">
+    <div class="row"><button class="primary" id="s-save">保存</button><button class="quiet" id="s-reset">地図と記録を白紙にする</button></div>
+    <h3>この形について</h3><p class="muted">入口は数のパズル。まず手で（物を動かす実験）、次にノートで（機械に手伝わせる実験）。ノートの最後のセルが、結果・条件・ノート本文の指紋を「記録」として送る。記録はカードにつき、誰でも同じノートを同じ条件で動かして確かめられる——研究の再現性と同じ意味での接地。</p>`;
+  el.querySelector("#s-save").addEventListener("click", () => { state.name = el.querySelector("#s-name").value.trim() || state.name; settings.liteBase = el.querySelector("#s-base").value.trim() || "../"; settings.liteUI = el.querySelector("input[name=s-ui]:checked").value; settings.runsBase = el.querySelector("#s-runs").value.trim() || "../runs/"; saveSettings(); saveState(); toast("保存しました"); });
+  el.querySelector("#s-reset").addEventListener("click", () => { if (confirm("カードと記録を全部消して白紙にする？（JSON に書き出してからがおすすめ）")) { state = newState(state.name); saveState(); renderCards(); renderRuns(); } });
+}
+function showView(v) { ui.view = v; document.querySelectorAll("nav.views button").forEach(b => b.classList.toggle("active", b.dataset.view === v)); document.querySelectorAll(".view").forEach(p => p.classList.toggle("active", p.id === "view-" + v)); ({door: renderDoor, runs: renderRuns, cards: renderCards, set: renderSettings})[v](); }
+function init() {
+  settings = loadSettings(); state = loadState();
+  if (!state) { const name = prompt("きみの名前（地図につけます）", "わたし") || "わたし"; state = newState(name.trim() || "わたし"); saveState(); }
+  document.querySelectorAll("nav.views button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+  if (typeof BroadcastChannel !== "undefined") { const ch = new BroadcastChannel("kg-map"); ch.onmessage = ev => { try { const msg = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; if (msg && msg.type === "evidence") receiveRun(msg, "notebook"); } catch (e) {} }; }
+  const m = location.hash.match(/^#puzzle=([a-z0-9_]+)/); if (m && pz(m[1])) ui.puzzle = m[1];
+  showView("door");
+}
+if (typeof window !== "undefined" && typeof document !== "undefined") { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init(); }
+</script>
+</body>
+</html>
