@@ -33,6 +33,14 @@ hand_one = "1 は約数が 1 つしかないので、残った数の仲間に入
 
 # %% [markdown]
 # ## 機械で
+#
+# まず、手でやったことをそのまま絵にする。2 の倍数を消したところ、3 まで、5 まで、7 まで。
+
+# %%
+def crossed_by(upto, n=100):
+    return {q for p in range(2, upto + 1) if sympy.isprime(p) for q in range(2 * p, n + 1, p)}
+
+grid_panels(100, [2, 3, 5, 7], titles=[f"{p} の倍数まで消した" for p in [2, 3, 5, 7]], cross_fn=crossed_by, ncol=2)
 
 # %%
 def sieve_steps(n, upto):
@@ -47,8 +55,16 @@ def sieve_steps(n, upto):
 machine_left = sieve_steps(100, 100)
 print("機械（100 まで、全部消したあと）：", machine_left)
 print("手の結果との食い違い：", sorted(set(machine_left) ^ set(hand_left)) or "なし")
-for upto in [2, 3, 5, 7, 11]:
-    print(f"{upto:>2} の倍数まで消したとき 残り {len(sieve_steps(100, upto))} 個")
+compare_grid(100, hand_left, machine_left)
+
+# 何の倍数まで消したかと、残る個数：7 で止まる
+xs = [p for p in range(2, 32) if sympy.isprime(p)]
+fig, ax = plt.subplots(figsize=(7, 2.6))
+ax.step(xs, [len(sieve_steps(100, p)) for p in xs], where="post", color="#111", lw=1.4, label="100 の表")
+ax.step(xs, [len(sieve_steps(1000, p)) / 10 for p in xs], where="post", color="#9a9a9a", lw=1.4, label="1000 の表（個数 ÷ 10）")
+ax.set_xlabel("何の倍数まで消したか"); ax.set_ylabel("残る個数"); ax.legend(fontsize=8, frameon=False)
+ax.set_title("消していくと残りが減り、あるところから減らなくなる", fontsize=9.5, loc="left")
+plt.show()
 
 # %% [markdown]
 # **見るところ**：7 の倍数まで消すと、あとは何も消えない。なぜ 7 で足りる？（100 より小さい合成数は、必ず 10 以下の約数をもつ？）
@@ -70,6 +86,9 @@ def enough(N):
 for N in [100, 1000, 10000, 100000]:
     full = sieve_steps(N, N); partial = sieve_steps(N, enough(N))
     print(f"N = {N:>6}：{enough(N):>3} までで消した残り {len(partial):>5} 個、全部消した残り {len(full):>5} 個 → {'同じ' if partial == full else 'ちがう'}")
+
+# 400 までの表で、残った数（素数）の並びを眺める
+number_grid(400, fill=sieve_steps(400, 20), cols=20, title="1〜400：残った数（素数）を黒く")
 
 # %%
 report("u1_sieve",
