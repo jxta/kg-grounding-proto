@@ -16,7 +16,7 @@
 | **数の遊び場**（形3、ブラウザだけ） | [遊び場を開く](https://jxta.github.io/kg-grounding-proto/play/) | 入口は説明のない絵（魅力的な分からなさ）。「分かったかも」の衝動を、もっと試す／自分で作る／誰かに見せる／地図に書く につなぐ。おもちゃ・予想を試す機械・問いの種・隠した教科書の言葉（[設計メモ](PLAY_DESIGN.md)） |
 | **地図アプリ ＋ 実験ノート**（形2、ブラウザだけ） | [自分の地図を開く](https://jxta.github.io/kg-grounding-proto/app/) | 地図を見て・編集し、ノードごとに実験ノートを別タブで開く。結果は地図に届く。そばにいる AI と相談しながら進める（下の「もう一つの形」） |
 | **JupyterLite**（形1、ブラウザだけ。インストール不要） | [Lab 画面](https://jxta.github.io/kg-grounding-proto/lab/index.html?path=kg_prime_factorization.ipynb) ／ [Notebook 画面](https://jxta.github.io/kg-grounding-proto/notebooks/index.html?path=kg_prime_factorization.ipynb) | 初回は Pyodide の読み込みに 20〜30 秒。全セル実行は 15 秒ほど。保存した地図はブラウザの中に残る |
-| **Binder**（本物の Python カーネル） | [mybinder.org で開く](https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?labpath=kg_prime_factorization.ipynb) | 起動に 1〜数分。日本語フォントは `apt.txt` で入る |
+| **Binder**（本物の Python カーネル ＋ ノートの中で AI と会話） | [mybinder.org で開く](https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?urlpath=lab/tree/puzzles/u1_sieve.ipynb) | 起動に 1〜数分。右パネルの [jupyter-mynerva](https://github.com/NII-cloud-operation/jupyter-mynerva)（NII）で、ノートを読む AI と会話しながら実験できる（設定に自分の API キー）。日本語フォントは `binder/apt.txt` で入る |
 | **手元の Jupyter** | `git clone` → `pip install -r requirements.txt` → ノートを開いて上から実行 | SageMath カーネルでもそのまま動く。日本語フォントは fonts/ → パソコン → ネット の順に探す（`python tools/make_font_subset.py` で fonts/ に置いておけばオフラインでも出る） |
 
 動かさずに読むだけなら [実行結果つきの HTML](https://jxta.github.io/kg-grounding-proto/kg_prime_factorization.html)
@@ -72,6 +72,7 @@ Web アプリは **入口と全体の整理**、本格的な実験は **Jupyter 
 - **手で → ノートで**：各ノート（`puzzles/`）は、物を動かす実験の説明 → 手の結果を書き込むセル → 同じ条件を機械で → 手と機械の照合 → もっと先へ → 予想を試す → 記録を送る、の順
 - **記録＝接地リンク**：`report()` が結果・手の結果・条件・**ノート本文の指紋**（`nb_sha`）・環境を地図アプリに届ける。カードに記録をつけると「手」「記録（版・条件）」「ノート」の印が並ぶ
 - **照合**：CI が同じノートを実行した公開の記録（[runs/](https://jxta.github.io/kg-grounding-proto/runs/p1_lockers.html)）と比べ、「同じ版」「結果一致」を印で示す。自分の前回の記録とも比べる。「同じノートをもう一度」で再実行
+- **ノートの中で AI と会話**：Binder で開くと jupyter-mynerva の AI が、ノートの見出し・セル・出力を読みながら答える。セルの追加・実行は毎回承認つき。各ノート冒頭の「AI と実験するときの約束」（答えを言わない、手の結果は書き換えない、入れたセルには `# [AI]`）がその AI への指示になり、`report()` は AI が入れたセルの数と会話の記録名を来歴に入れる
 - **実験を作る**：問い・手でやったこと・手の結果・予想・機械に頼むことを自分の言葉で書くと、機械の部分のノートを **ひな形**（AI なし）か **生成 AI** が書く。任せるのはコードだけ。アプリが形と危ない書き方を検査し、4 つの確かめを自分でしてから JupyterLite に置く（直接／受け取りノート／.ipynb）。自作ノートの記録は「作ったときの版」と照合する。何を AI に任せ、何を生徒に残すかは設計メモ §5
 
 詳しくは [HYBRID_DESIGN.md](HYBRID_DESIGN.md)。
@@ -115,7 +116,7 @@ Web アプリは **入口と全体の整理**、本格的な実験は **Jupyter 
 | ファイル | 用途 |
 |:--|:--|
 | `hybrid/index.html` | 手と機械の実験室（形4、1 ファイル）。パズル・手の記録・ノートからの記録の照合・接地リンクつきカード |
-| `puzzles/*.py` | パズルノートの元（jupytext）。手の実験 → 機械の実験 → `report()`。CI が実行して `runs/` に実行済み HTML と記録 JSON を置く |
+| `puzzles/*.py` | パズルノートの元（jupytext）。手の実験 → 機械の実験 → `report()`。CI が実行して `runs/` に実行済み HTML と記録 JSON を置く。`00_receive.py` は AI で作ったノートを JupyterLite に受け取るためのもの |
 | `HYBRID_DESIGN.md` | 形4の設計メモ（再現性としての接地、三つの層） |
 | `play/index.html` | 数の遊び場（形3、1 ファイル、依存なし）。おもちゃ・カード・問いの種・AI |
 | `PLAY_DESIGN.md` | 形3の設計メモ（今井むつみの枠組みとの対応、形1・形2の自己批判、限界） |
@@ -142,7 +143,8 @@ Web アプリは **入口と全体の整理**、本格的な実験は **Jupyter 
 |:--|:--|
 | `kg_prime_factorization.ipynb` | 本体。道具のセル（先頭 5 つ）は折りたたんである |
 | `PRESENTATION_GUIDE.md` | 10 分デモの順序と想定 Q&A |
-| `requirements.txt` / `apt.txt` | 依存（Binder もこれを読む） |
+| `requirements.txt` / `apt.txt` | 依存 |
+| `binder/` | Binder 用の設定。`requirements.txt` に jupyter-mynerva、`postBuild` で nblibram を入れ、パズルノートを作る |
 | `tools/make_font_subset.py` | Noto Sans CJK JP のサブセット（約 1.8 MB）を `fonts/` に作る。JupyterLite・CI・CJK フォントのない環境用。その字体にない記号（≤ ⁴ ⚠ など）は DejaVu Sans で補う |
 | `fonts/NotoSansCJKjp-Regular-subset.otf` | 同梱の日本語フォント（上のツールで作ったもの、約 1.8 MB）。`fonts/LICENSE-OFL.txt` はそのライセンス（SIL OFL 1.1） |
 | `.github/workflows/deploy.yml` | push のたびにノートを実行し、実験ノート・パズルノートを生成・実行し、図・HTML・実行記録・アプリ・JupyterLite を GitHub Pages に置く |

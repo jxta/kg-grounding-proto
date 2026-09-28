@@ -295,6 +295,7 @@ function runBadges(run) {
   const prev = state.runs.filter(r => r.id !== run.id && r.exp === run.exp && stable(r.params || {}) === stable(run.params || {}) && r.received < run.received).pop();
   if (prev) { const cmp = compareRuns(run, prev); b.push(`<span class="badge ${cmp.sameData ? "ok" : "ng"}">${cmp.sameData ? "前回の自分の記録と一致" : "前回の自分の記録とちがう"}</span>`); }
   if (run.hand) b.push(`<span class="badge soft">手の結果つき</span>`);
+  if (run.provenance?.ai_cells) b.push(`<span class="badge soft" title="${esc(run.provenance.ai_session || "")}">AI が入れたセル ${esc(run.provenance.ai_cells)} 個</span>`);
   return b.join(" ");
 }
 
@@ -324,7 +325,8 @@ function renderPuzzle(id) {
         <div class="row"><button class="primary small" id="pz-hand">手でやったことを書く</button></div>
         ${cards.filter(c => c.type === "hand").map(c => `<div class="result">${esc(c.text)} <span class="muted">${esc(c.t)}</span></div>`).join("")}</div>
       <div class="box"><h3>ノートで</h3><div class="muted">手の結果をノートに書き込み、機械と照らし合わせ、もっと先まで試す。最後のセルで記録（結果・条件・ノートの版）がここに届く。</div>
-        <div class="row"><a href="${esc(nbUrl(p.notebook))}" target="_blank" rel="noopener"><button class="small">ノートを開く（JupyterLite）</button></a><a href="${esc(runUrl(id))}" target="_blank" rel="noopener"><button class="small quiet">公開の実行記録を見る</button></a></div>
+        <div class="row"><a href="${esc(nbUrl(p.notebook))}" target="_blank" rel="noopener"><button class="small">ノートを開く（JupyterLite）</button></a>${p.spec ? "" : `<a href="${esc(BINDER + p.notebook)}" target="_blank" rel="noopener"><button class="small">Binder で開く（AI と会話しながら）</button></a>`}<a href="${esc(runUrl(id))}" target="_blank" rel="noopener"><button class="small quiet">公開の実行記録を見る</button></a></div>
+        ${p.spec ? `<div class="muted">AI と会話しながら動かすなら：「.ipynb を保存」して <a href="https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?urlpath=lab/tree/puzzles" target="_blank" rel="noopener">Binder</a> の puzzles/ にアップロード（起動に 1〜数分）。</div>` : `<div class="muted">Binder では右の Mynerva パネルで AI と話せる（設定に自分の API キー）。ノートの約束：AI は答えを言わず、入れたセルには <code># [AI]</code> の印。</div>`}
         <div class="muted">手元の Jupyter で動かした場合は、できた <code>evidence_${esc(id)}.json</code> を「記録」の頁で読み込む。</div>
         <h3>届いた記録（${runs.length}）</h3><div id="pz-runs">${runsHtml(runs)}</div></div>
     </div>
@@ -446,6 +448,14 @@ const pyPred = (sel) => { const p = PY_PREDS.find(x => x.id === sel.id); let cod
 const slugify = t => { const s = (t || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24); return /[a-z]/.test(s) ? s : "exp"; };
 const FIRST_CELL = 'import sys; sys.path.insert(0, "."); sys.path.insert(0, "../experiments")\nimport numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）\nfrom kg_tools import *';
 function pyStr(s) { return JSON.stringify(String(s)); }
+const BINDER = "https://mybinder.org/v2/gh/jxta/kg-grounding-proto/HEAD?urlpath=lab/tree/puzzles/";
+const PROMISE_CELL = {type: "markdown", source: "> **AI と実験するときの約束**（ノートの中の AI（Mynerva など）と、きみへ）\n> - 問い・手でやったこと・手の結果・予想は、きみが書く。AI は書き換えない\n> - AI は答えや定理を先に言わない。「何が見えた？」「どこまで確かめた？」と聞く\n> - AI が入れるセルは、コードなら 1 行目に `# [AI]`、文章なら先頭に `（AI）` と書く。誰が書いたか分かるように\n> - 手の結果と機械の結果を照らすセルと、最後の `report()` は消さない\n> - AI の言うことは確かめる。機械が正しいとは限らないし、AI も間違える"};
+// 約束のセルを、最初の文章セルのあとに入れる（ひな形でも生成 AI でも同じ）
+function withPromise(cells) {
+  if (cells.some(c => c.source.includes("AI と実験するときの約束"))) return cells;
+  const i = cells.findIndex(c => c.type === "markdown");
+  const out = cells.slice(); out.splice(i >= 0 ? i + 1 : 0, 0, PROMISE_CELL); return out;
+}
 // JupyterLite への受け渡し（経路 2）：受け取りノート 00_receive.ipynb が want_notebook を送ってきたら、送る準備をしているノートを返す
 let outbox = null, nbChannel = null;
 function postOutbox() { if (!outbox || !nbChannel) return; nbChannel.postMessage(JSON.stringify({type: "notebook", name: outbox.name, ipynb: outbox.ipynb})); }
@@ -591,7 +601,7 @@ function renderMake() {
       if (!spec.ask || !spec.hand_text) { el.querySelector("#m-msg").textContent = "問いと、手でやったことは自分で書いてください（ここは AI に任せない）"; return; }
       if (spec.hand_examples && !/^\[[\d,\s]*\]$/.test(spec.hand_examples)) spec.hand_examples = "";   // Python の一覧として読めないものは note にだけ残す
       el.querySelector("#m-go").disabled = true; el.querySelector("#m-msg").textContent = spec.mode === "llm" ? "生成 AI がコードを書いています…" : "ひな形から作っています…";
-      try { ms.cells = spec.mode === "llm" ? await llmCells(spec) : templateCells(spec); ms.problems = validateCells(ms.cells, spec); ms.step = "preview"; renderMake(); }
+      try { ms.cells = withPromise(spec.mode === "llm" ? await llmCells(spec) : templateCells(spec)); ms.problems = validateCells(ms.cells, spec); ms.step = "preview"; renderMake(); }
       catch (e) { el.querySelector("#m-go").disabled = false; el.querySelector("#m-msg").textContent = "作れませんでした：" + e.message; }
     });
     return;
@@ -634,6 +644,7 @@ function renderSettings() {
     <div>API キー</div><input type="password" id="s-key" value="${esc(settings.apiKey || "")}" style="width:100%"><div>モデル（API の ID。ハイフン区切り、点は使わない）</div><input type="text" id="s-model" list="s-models" value="${esc(settings.model || "claude-sonnet-5")}" style="width:100%"><datalist id="s-models"><option value="claude-sonnet-5">Claude Sonnet 5（速い・安い。まずはこれ）</option><option value="claude-opus-5-5">Claude Opus 5.5</option><option value="claude-fable-5-1">Claude Fable 5.1</option><option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option></datalist><div class="muted">例：claude-opus-5-5、claude-sonnet-5。「claude-opus5.5」のように点で書くと API が 400 を返す</div>
     <div>ワークスペース ID（キーが特定のワークスペースに紐づいていないときだけ必要。wrkspc_ で始まる）</div><input type="text" id="s-ws" value="${esc(settings.workspace || "")}" style="width:100%" placeholder="wrkspc_…（Console の Settings → Workspaces の ID 列）"><div class="muted">「This API key is not scoped to a workspace…」という 400 が出たら、ここに ID を入れるか、ワークスペースの中で作ったキーを使う</div>
     <div class="row"><button class="primary" id="s-save">保存</button><button class="quiet" id="s-reset">地図と記録を白紙にする</button></div>
+    <h3>ノートの中で AI と会話する</h3><p class="muted">Binder で開くと、JupyterLab の右に jupyter-mynerva（NII）のパネルが出る。ノートの見出し・セル・出力を読みながら会話し、セルを入れる・動かすは毎回きみの承認つき。各ノートの「AI と実験するときの約束」がその AI への指示になる。API キーはパネルの設定に自分のものを（教室では先生のゲートウェイを使う予定）。</p>
     <h3>この形について</h3><p class="muted">入口は数のパズル。まず手で（物を動かす実験）、次にノートで（機械に手伝わせる実験）。ノートの最後のセルが、結果・条件・ノート本文の指紋を「記録」として送る。記録はカードにつき、誰でも同じノートを同じ条件で動かして確かめられる——研究の再現性と同じ意味での接地。</p>`;
   el.querySelector("#s-save").addEventListener("click", () => { state.name = el.querySelector("#s-name").value.trim() || state.name; settings.liteBase = el.querySelector("#s-base").value.trim() || "../"; settings.liteUI = el.querySelector("input[name=s-ui]:checked").value; settings.runsBase = el.querySelector("#s-runs").value.trim() || "../runs/"; settings.apiKey = el.querySelector("#s-key").value.trim(); settings.model = el.querySelector("#s-model").value.trim() || "claude-sonnet-5"; settings.workspace = el.querySelector("#s-ws").value.trim(); saveSettings(); saveState(); toast("保存しました"); });
   el.querySelector("#s-reset").addEventListener("click", () => { if (confirm("カードと記録を全部消して白紙にする？（JSON に書き出してからがおすすめ）")) { state = newState(state.name); saveState(); renderCards(); renderRuns(); } });

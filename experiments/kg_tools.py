@@ -852,6 +852,34 @@ def _nb_sha(notebook):
     except Exception:
         return None
 
+def _ai_cells(notebook):
+    """AI（Mynerva など）が入れたセルの数：コードは 1 行目に # [AI]、文章は先頭に（AI）と書く約束"""
+    try:
+        with open(notebook, encoding="utf-8") as f:
+            nb = json.load(f)
+        n = 0
+        for c in nb.get("cells", []):
+            src = c.get("source", "")
+            src = ("".join(src) if isinstance(src, list) else src).lstrip()
+            if src.startswith("# [AI]") or src.startswith("（AI）") or src.startswith("(AI)"):
+                n += 1
+        return n
+    except Exception:
+        return None
+
+def _ai_session():
+    """ノートの中の AI（jupyter-mynerva）の会話の記録があれば、いちばん新しいものの名前"""
+    try:
+        import glob
+        files = []
+        for d in [".mynerva/sessions", "../.mynerva/sessions", os.path.expanduser("~/.mynerva/sessions")]:
+            files += glob.glob(os.path.join(d, "*.mnchat"))
+        if not files:
+            return None
+        return os.path.basename(max(files, key=os.path.getmtime))
+    except Exception:
+        return None
+
 def report(exp, summary, data=None, hand=None, params=None, notebook=None):
     """実験の結果を「自分の地図」アプリに届ける。
     JupyterLite：同じブラウザで開いている地図アプリのタブに BroadcastChannel で送る。
@@ -865,6 +893,13 @@ def report(exp, summary, data=None, hand=None, params=None, notebook=None):
         msg["params"] = params
     msg["provenance"] = {"notebook": notebook, "nb_sha": _nb_sha(notebook) if notebook else None,
                          "platform": sys.platform, "python": sys.version.split()[0], "t": msg["t"]}
+    if notebook:
+        ai_n = _ai_cells(notebook)
+        if ai_n:
+            msg["provenance"]["ai_cells"] = ai_n          # AI が入れたセルの数（約束どおり印がついたもの）
+        sess = _ai_session()
+        if sess:
+            msg["provenance"]["ai_session"] = sess        # AI との会話の記録（jupyter-mynerva のセッション名）
     sent = False
     if sys.platform == "emscripten":
         try:
@@ -884,6 +919,8 @@ def report(exp, summary, data=None, hand=None, params=None, notebook=None):
     print("■ 結果：", summary)
     if msg["provenance"]["nb_sha"]:
         print(f"　来歴：{notebook}（本文の指紋 {msg['provenance']['nb_sha']}）／{sys.platform}／{msg['t']}")
+    if msg["provenance"].get("ai_cells"):
+        print(f"　AI が入れたセル：{msg['provenance']['ai_cells']} 個" + (f"／会話の記録：{msg['provenance']['ai_session']}" if msg["provenance"].get("ai_session") else ""))
     if sent:
         print("→ 地図アプリに送りました（地図のタブを開いていれば「記録」に出ます）")
     else:
