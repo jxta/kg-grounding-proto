@@ -43,6 +43,10 @@ for n, h in [(72, hand_divisors_72), (48, hand_divisors_48)]:
 divisor_grid(72)
 divisor_grid(48)
 
+# 同じことを「1 段ずつ素数をかけて上がる図」で見る（線は × 2 と × 3）
+divisor_lattice(72)
+divisor_lattice(360)   # 素因数が 3 種類だと、表は 3 方向になる
+
 # %% [markdown]
 # **見るところ**：表の行の数は「2 を何個使うか」の場合の数（0〜3 個で 4 通り）、列の数は「3 を何個使うか」（0〜2 個で 3 通り）。個数＝行 × 列。
 #
@@ -63,6 +67,8 @@ print("2025 =", factorization_str(2025), "→ 約数は", my_guess(2025), "個�
 
 odd = [n for n in range(1, 101) if sympy.divisor_count(n) % 2 == 1]
 print("約数の個数が奇数になる数（100 まで）：", odd, "← どんな数？（単元パズル7）")
+count_bars(100, sympy.divisor_count, highlight=odd, title="1〜100 の約数の個数（黒＝奇数個）", ylabel="約数の個数")
+number_grid(100, fill=odd, title="約数の個数が奇数になる数（黒）")
 
 # %%
 report("u3_count",
