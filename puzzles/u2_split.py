@@ -44,6 +44,11 @@ t2 = factor_tree(60, splits={60: (4, 15), 4: (2, 2), 15: (3, 5)})
 t3 = factor_tree(60, splits={60: (2, 30), 30: (3, 10), 10: (2, 5)})
 show_trees([t1, t2, t3], ["60 = 6 × 10 から", "60 = 4 × 15 から", "60 = 2 × 30 から"])
 
+# 72 と 360 を、でたらめな順で分けた木
+rng = random.Random(1)
+show_trees([factor_tree(72, rng=rng), factor_tree(72, rng=rng)], ["72（でたらめな順 1）", "72（でたらめな順 2）"])
+show_trees([factor_tree(360, rng=rng), factor_tree(360, rng=rng)], ["360（でたらめな順 1）", "360（でたらめな順 2）"])
+
 # %% [markdown]
 # **見るところ**：黒いカード（もう分けられない数＝素数）の組は、分け方によらず同じ。まとめて書くと 60 = 2² × 3 × 5。
 #
@@ -57,6 +62,10 @@ seq = ["60"]
 for k in range(1, 5):
     seq.append(" × ".join(["1"] * k + ["60"]))
 print("1 を許すと：", "  →  ".join(seq), " →  …（終わらない）")
+endless_tree(60, depth=5)
+
+# 葉をそろえて書いたもの（2² × 3 × 5）を、棒で見る：素数ごとに何個あるか
+exponent_bars([60, 72, 360])
 
 # %% [markdown]
 # ## 予想を試す
