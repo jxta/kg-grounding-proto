@@ -1,0 +1,9 @@
+#!/bin/bash
+# Binder のイメージを作るときに一度だけ動く。
+# 1. パズルノート（.py, jupytext）を .ipynb にする   2. jupyter-mynerva が使う nblibram（Go の実行ファイル）を入れる
+set -e
+jupytext --to ipynb puzzles/*.py experiments/[0-9]*.py || true
+mkdir -p "$HOME/.local/bin"
+curl -sL https://github.com/NII-cloud-operation/nblibram/releases/latest/download/nblibram_linux_amd64.tar.gz | tar xz -C "$HOME/.local/bin" nblibram || echo "nblibram のダウンロードに失敗（AI 会話は使えないが、ノートは動く）"
+chmod +x "$HOME/.local/bin/nblibram" 2>/dev/null || true
+jupyter server extension enable jupyter_mynerva 2>/dev/null || true

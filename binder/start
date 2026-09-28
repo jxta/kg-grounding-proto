@@ -1,0 +1,4 @@
+#!/bin/bash
+# 起動のたびに動く：nblibram を PATH に
+export PATH="$HOME/.local/bin:$PATH"
+exec "$@"

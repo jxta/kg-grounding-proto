@@ -1,0 +1,8 @@
+# Binder 用（mybinder.org はこのフォルダを優先して読む）。ノートの部品 ＋ ノートの中で AI と会話する jupyter-mynerva
+numpy
+matplotlib
+networkx
+sympy
+fonttools
+jupytext
+jupyter_mynerva
