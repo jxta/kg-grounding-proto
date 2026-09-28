@@ -38,7 +38,12 @@ r3 = [p for p in sympy.primerange(3, 101) if p % 4 == 3]
 print(f"余り 1（100 まで）：機械 {len(r1)} 個、手 {len(hand_r1)} 個 → {'一致' if sorted(hand_r1) == r1 else '食い違い：' + str(sorted(set(hand_r1) ^ set(r1)))}")
 print(f"余り 3（100 まで）：機械 {len(r3)} 個、手 {len(hand_r3)} 個 → {'一致' if sorted(hand_r3) == r3 else '食い違い：' + str(sorted(set(hand_r3) ^ set(r3)))}")
 
-D = prime_race(30000)
+number_grid(100, fill=r3, ring=r1, title="100 までの素数：黒＝余り 3、丸＝余り 1（2 は白）")
+compare_grid(100, hand_r3, r3, title="余り 3 の素数：手と機械を照らす（黒＝両方、丸＝機械だけ、斜線＝手だけ）")
+
+race_lines(1000)      # 2 本の線で見る：どっちが上？
+race_lines(30000)
+D = prime_race(30000)  # 差で見る：0 を割るところ
 
 # %% [markdown]
 # **見るところ**：100 まででは余り 3 が多い。1000 でも 10000 でも余り 3 が多い。ここで「いつも余り 3 が多い」と言いたくなる。
