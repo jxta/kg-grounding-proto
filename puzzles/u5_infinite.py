@@ -53,6 +53,20 @@ for label, v in hand_values.items():
 # %%
 rows = euclid_numbers(10)
 
+# 「どれで割っても 1 余る」を絵で：31 個の点を 2 個ずつ、3 個ずつ、5 個ずつ並べると、必ず 1 個余る
+remainder_panels(31, [2, 3, 5])
+remainder_panels(211, [2, 3, 5, 7])
+
+# ユークリッドの数の大きさ（対数目盛）と、素数かどうか
+fig, ax = plt.subplots(figsize=(7, 2.8))
+ks = [i for i, p, n, fs, new in rows]; ns = [n for i, p, n, fs, new in rows]
+ax.plot(ks, ns, "-", color="#9a9a9a", lw=1)
+for i, p, n, fs, new in rows:
+    ax.plot([i], [n], "o", color="#111" if sympy.isprime(n) else "white", mec="#111", ms=7)
+ax.set_yscale("log"); ax.set_xlabel("k（かけた素数の個数）"); ax.set_ylabel("2×3×…×p + 1")
+ax.set_title("黒＝素数、白＝素数ではない（でも新しい素数を含む）", fontsize=9.5, loc="left")
+plt.show()
+
 # %% [markdown]
 # ## 予想を試す
 #
