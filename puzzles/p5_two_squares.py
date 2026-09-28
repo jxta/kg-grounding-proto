@@ -43,11 +43,16 @@ machine_ok = [n for n in range(1, 31) if two_squares(n)]
 print("機械（30 まで）：", machine_ok)
 print("手　（30 まで）：", hand_ok)
 print("食い違い：", sorted(set(machine_ok) ^ set(hand_ok)) or "なし")
+two_squares_pics([5, 13, 25, 3, 29])
+compare_grid(30, hand_ok, machine_ok)
+number_grid(100, fill=lambda n: two_squares(n) is not None, title="正方形 2 つにできる枚数（黒）")
 
 # %% [markdown]
 # **見るところ**：できなかった枚数のうち素数のもの（3, 7, 11, 19, 23…）と、できた素数（2, 5, 13, 17, 29…）。4 で割った余りは？
 
 # %%
+number_grid(100, fill=lambda n: sympy.isprime(n) and two_squares(n) is not None, ring=lambda n: sympy.isprime(n) and two_squares(n) is None,
+            title="素数だけ：黒＝正方形 2 つにできる、丸＝できない")
 print(f"{'素数':>4} {'2 つの正方形':>10} {'4 で割った余り':>10}")
 for p in sympy.primerange(2, 60):
     t = two_squares(p)
