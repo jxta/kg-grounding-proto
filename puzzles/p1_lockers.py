@@ -44,11 +44,13 @@ def lockers(n):
             open_[j] = not open_[j]
     return [j for j in range(1, n + 1) if open_[j]]
 
+lockers_strip(20, 20)     # 手でやったことをそのまま絵に：人ごとの行
 machine_20 = lockers(20)
 print("機械（20 枚）：", machine_20)
 print("手　（20 枚）：", hand_open)
 diff = sorted(set(machine_20) ^ set(hand_open))
 print("食い違い：", diff if diff else "なし")
+compare_grid(20, hand_open, machine_20)
 
 # %% [markdown]
 # **見るところ**：食い違いがあれば、その番号のカードを手でもう一度やってみる。何回めくられる？（めくられる回数＝その番号の約数の個数）
@@ -61,6 +63,8 @@ for n in [100, 1000]:
 print()
 print("番号 :", *[f"{j:>3}" for j in range(1, 21)])
 print("回数 :", *[f"{len(sympy.divisors(j)):>3}" for j in range(1, 21)])
+count_bars(100, sympy.divisor_count, highlight=lockers(100), title="何回めくられたか（1〜100）。黒＝最後に開いている", ylabel="回数")
+number_grid(100, fill=lockers(100), title="100 個のロッカー：最後に開いているもの（黒）")
 
 # %% [markdown]
 # ## 予想を試す
