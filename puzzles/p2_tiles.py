@@ -40,6 +40,8 @@ for n, hs in hand.items():
     mark = "一致" if sorted(hs) == sorted(m) else f"食い違い（機械：{m}）"
     print(f"{n:>3} 枚：手 {len(hs)} 通り、機械 {len(m)} 通り → {mark}")
 
+rectangles_panels([12, 13, 16, 24, 36])   # 手で作った長方形を、機械が全部描く（黒＝正方形）
+
 # %% [markdown]
 # **見るところ**：長方形の数は、その枚数の「約数の組」の数。1 通りしかできない枚数は？ 正方形ができるのはどんな枚数？
 
@@ -55,6 +57,7 @@ only_one = [n for n in xs if len(rectangles(n)) == 1]
 squares = [n for n in xs if any(a == b for a, b in rectangles(n))]
 print("1 通りしかできない枚数（100 まで）：", only_one)
 print("正方形ができる枚数（100 まで）：", squares)
+number_grid(100, fill=only_one, ring=squares, title="黒＝1 通りしかできない枚数、丸＝正方形ができる枚数")
 
 # %% [markdown]
 # ## 予想を試す
