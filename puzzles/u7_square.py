@@ -39,6 +39,10 @@ for n, ok in hand_square.items():
     exps = list(sympy.factorint(n).values())
     print(f"{n:>3} 枚：手 {'できた' if ok else 'できない'}／機械 {'できる' if m else 'できない'} → {'一致' if ok == m else '食い違い'}　{factorization_str(n)}　指数 {exps}")
 
+# %%
+tiles_square([16, 24, 36, 48, 64])       # 正方形になる枚数と、ならない枚数
+exponent_bars([16, 24, 36, 48, 64])      # 指数（黒＝偶数、白＝奇数）
+
 # %% [markdown]
 # **見るところ**：指数がすべて偶数なら、半分ずつに分けて（…）² と書ける → 正方形。
 # 逆（正方形なら指数はすべて偶数）を言うときは、分解がただ一通りであることを借りる（単元パズル2）。
@@ -57,6 +61,8 @@ counter = [n for n in range(1, N + 1) if all_even(n) != (math.isqrt(n) ** 2 == n
 print(f"予想「{guess}」の反例（1〜{N}）：", counter[:10] or "なし")
 odd_div = [n for n in range(1, N + 1) if sympy.divisor_count(n) % 2 == 1]
 print("約数の個数が奇数の数 ＝ 正方形の枚数？（1〜N）：", "同じ集まり" if odd_div == [n for n in range(1, N + 1) if math.isqrt(n) ** 2 == n] else "ちがう")
+number_grid(100, fill=lambda n: math.isqrt(n) ** 2 == n, ring=lambda n: sympy.divisor_count(n) % 2 == 1,
+            title="黒＝正方形にできる枚数、丸＝約数が奇数個（重なる？）")
 
 # %%
 report("u7_square",
