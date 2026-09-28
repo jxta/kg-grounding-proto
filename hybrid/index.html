@@ -253,7 +253,7 @@ let state, settings, ui = {view: "door", puzzle: null, selected: null};
 function newState(name) { return {name, created: now(), cards: [], runs: [], mine: [], log: []}; }
 function loadState() { try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.cards) { s.runs = s.runs || []; s.mine = s.mine || []; return s; } } catch (e) {} return null; }
 function saveState() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
-function loadSettings() { const d = {liteBase: "../", liteUI: "notebooks", runsBase: "../runs/", apiKey: "", model: "claude-sonnet-4-6"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
+function loadSettings() { const d = {liteBase: "../", liteUI: "notebooks", runsBase: "../runs/", apiKey: "", model: "claude-sonnet-5"}; try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS) || "{}")); } catch (e) { return d; } }
 function saveSettings() { try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} }
 let _cid = 0;
 const nbUrl = file => { const b = settings.liteBase.endsWith("/") ? settings.liteBase : settings.liteBase + "/"; return `${b}${settings.liteUI}/index.html?path=puzzles/${file}`; };
@@ -490,7 +490,7 @@ async function llmCells(spec) {
 - markdown は短く、やさしい日本語。見出しは「手で」「機械で」「もっと先へ・予想を試す」「記録を送る」`;
   const user = `題名：${spec.title}\n問い：${spec.ask}\n手でやったこと・見えたこと：${spec.hand_text}\n手の結果（数や一覧）：${spec.hand_result}\n予想：${spec.guess}\n機械に頼むこと：${spec.ask_machine}\nどこまで（N）：${spec.N}`;
   const r = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers: {"content-type": "application/json", "x-api-key": settings.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"}, body: JSON.stringify({model: settings.model, max_tokens: 4000, system: sys, messages: [{role: "user", content: user}]})});
-  if (!r.ok) throw new Error("API " + r.status);
+  if (!r.ok) { let detail = ""; try { const e = await r.json(); detail = e?.error?.message || JSON.stringify(e).slice(0, 200); } catch (_) {} throw new Error(`API ${r.status}${detail ? "：" + detail : ""}${r.status === 400 && /model/i.test(detail) ? "（設定のモデル名を確かめてください。例：claude-opus-5-5）" : ""}`); }
   const data = await r.json(); const raw = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n").trim();
   const obj = JSON.parse(raw.replace(/^```(json)?/, "").replace(/```$/, "").trim());
   if (!obj.cells || !Array.isArray(obj.cells)) throw new Error("cells がない");
@@ -555,7 +555,7 @@ function renderMake() {
       <div class="field"><label>機械に頼むこと</label><input type="text" id="m-askm" value="${esc(sp.ask_machine || "")}" style="width:100%" placeholder="例：10000 まで全部調べて、外れる数があれば出す。逆も調べる"><div class="hint">どこまで（N） <input type="number" id="m-N" value="${sp.N || 10000}" min="10" max="100000" style="width:90px"></div></div>
       <div class="field"><label>機械の部分を書くのは</label>
         <label><input type="radio" name="m-mode" value="template" ${!settings.apiKey || sp.mode === "template" ? "checked" : ""}> ひな形（AI なし。「A の数は、全部 B？」か「A の数はいくつ？」の形）</label>
-        <label><input type="radio" name="m-mode" value="llm" ${settings.apiKey && sp.mode !== "template" ? "checked" : ""} ${settings.apiKey ? "" : "disabled"}> 生成 AI（設定に API キーが要る${settings.apiKey ? "" : "：未設定"}）</label></div>
+        <label><input type="radio" name="m-mode" value="llm" ${settings.apiKey && sp.mode !== "template" ? "checked" : ""} ${settings.apiKey ? "" : "disabled"}> 生成 AI（設定に API キーが要る${settings.apiKey ? "。モデル：" + esc(settings.model || "claude-sonnet-5") : "：未設定"}）</label></div>
       <div class="box" id="m-tpl"><div class="row"><label><input type="radio" name="m-form" value="all" ${sp.form !== "count" ? "checked" : ""}> 「A の数は、全部 B？」</label><label><input type="radio" name="m-form" value="count" ${sp.form === "count" ? "checked" : ""}> 「A の数はいくつある？」</label></div>
         <div class="row">A：${predSel("A", sp.A)}</div><div class="row" id="m-Brow">B：${predSel("B", sp.B)}</div><div class="muted">ひな形に当てはまらない実験は、生成 AI モードか、自由実験ノート（experiments/00_scratch）で。</div></div>
       <div class="row" style="margin-top:12px"><button class="primary" id="m-go">ノートを作る</button><span class="muted" id="m-msg"></span></div>`;
@@ -615,10 +615,10 @@ function renderSettings() {
     <div class="row"><label><input type="radio" name="s-ui" value="notebooks" ${settings.liteUI === "notebooks" ? "checked" : ""}> Notebook 画面</label><label><input type="radio" name="s-ui" value="lab" ${settings.liteUI === "lab" ? "checked" : ""}> Lab 画面</label></div>
     <div>公開の実行記録の場所（CI が置く runs/）</div><input type="text" id="s-runs" value="${esc(settings.runsBase)}" style="width:100%">
     <h3>実験を作る AI（Anthropic API）</h3><div class="muted">「実験を作る」で使う。自分（または先生）の API キーをこのブラウザにだけ保存する。AI はコードを書くだけで、問い・手の実験・予想・手の結果は生徒が書く。</div>
-    <div>API キー</div><input type="password" id="s-key" value="${esc(settings.apiKey || "")}" style="width:100%"><div>モデル</div><input type="text" id="s-model" value="${esc(settings.model || "claude-sonnet-4-6")}" style="width:100%">
+    <div>API キー</div><input type="password" id="s-key" value="${esc(settings.apiKey || "")}" style="width:100%"><div>モデル（API の ID。ハイフン区切り、点は使わない）</div><input type="text" id="s-model" list="s-models" value="${esc(settings.model || "claude-sonnet-5")}" style="width:100%"><datalist id="s-models"><option value="claude-sonnet-5">Claude Sonnet 5（速い・安い。まずはこれ）</option><option value="claude-opus-5-5">Claude Opus 5.5</option><option value="claude-fable-5-1">Claude Fable 5.1</option><option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option></datalist><div class="muted">例：claude-opus-5-5、claude-sonnet-5。「claude-opus5.5」のように点で書くと API が 400 を返す</div>
     <div class="row"><button class="primary" id="s-save">保存</button><button class="quiet" id="s-reset">地図と記録を白紙にする</button></div>
     <h3>この形について</h3><p class="muted">入口は数のパズル。まず手で（物を動かす実験）、次にノートで（機械に手伝わせる実験）。ノートの最後のセルが、結果・条件・ノート本文の指紋を「記録」として送る。記録はカードにつき、誰でも同じノートを同じ条件で動かして確かめられる——研究の再現性と同じ意味での接地。</p>`;
-  el.querySelector("#s-save").addEventListener("click", () => { state.name = el.querySelector("#s-name").value.trim() || state.name; settings.liteBase = el.querySelector("#s-base").value.trim() || "../"; settings.liteUI = el.querySelector("input[name=s-ui]:checked").value; settings.runsBase = el.querySelector("#s-runs").value.trim() || "../runs/"; settings.apiKey = el.querySelector("#s-key").value.trim(); settings.model = el.querySelector("#s-model").value.trim() || "claude-sonnet-4-6"; saveSettings(); saveState(); toast("保存しました"); });
+  el.querySelector("#s-save").addEventListener("click", () => { state.name = el.querySelector("#s-name").value.trim() || state.name; settings.liteBase = el.querySelector("#s-base").value.trim() || "../"; settings.liteUI = el.querySelector("input[name=s-ui]:checked").value; settings.runsBase = el.querySelector("#s-runs").value.trim() || "../runs/"; settings.apiKey = el.querySelector("#s-key").value.trim(); settings.model = el.querySelector("#s-model").value.trim() || "claude-sonnet-5"; saveSettings(); saveState(); toast("保存しました"); });
   el.querySelector("#s-reset").addEventListener("click", () => { if (confirm("カードと記録を全部消して白紙にする？（JSON に書き出してからがおすすめ）")) { state = newState(state.name); saveState(); renderCards(); renderRuns(); } });
 }
 function showView(v) { ui.view = v; document.querySelectorAll("nav.views button").forEach(b => b.classList.toggle("active", b.dataset.view === v)); document.querySelectorAll(".view").forEach(p => p.classList.toggle("active", p.id === "view-" + v)); ({door: renderDoor, make: renderMake, runs: renderRuns, cards: renderCards, set: renderSettings})[v](); }
