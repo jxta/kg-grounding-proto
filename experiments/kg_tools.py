@@ -401,6 +401,439 @@ def euclid_numbers(k=10):
     return rows
 
 
+# ---------- 絵の道具（パズルノート用。モノクロ） ----------
+_INK, _GRAY, _LIGHT, _LINE = "#111111", "#9a9a9a", "#e6e6e6", "#bbbbbb"
+
+def _as_set(x, N):
+    """集合・リスト・判定関数のどれでも受けて、1〜N の集合にする"""
+    if x is None:
+        return set()
+    if callable(x):
+        return {n for n in range(1, N + 1) if x(n)}
+    return set(x)
+
+def number_grid(N, fill=None, ring=None, cross=None, cols=10, title=None, ax=None, cell=0.62, numbers=True, save=None):
+    """1〜N の表。fill：黒く塗る数、ring：丸をつける数、cross：斜線で消す数（どれも集合か判定関数）"""
+    F, R, C = _as_set(fill, N), _as_set(ring, N), _as_set(cross, N)
+    rows = math.ceil(N / cols)
+    own = ax is None
+    if own:
+        fig, ax = plt.subplots(figsize=(cell * cols + 0.4, cell * rows + 0.7))
+    ax.set_xlim(0, cols); ax.set_ylim(0, rows); ax.set_aspect("equal"); ax.axis("off")
+    fs = max(5, min(11, 110 / cols))
+    for k in range(1, N + 1):
+        r, c = divmod(k - 1, cols)
+        x, y = c, rows - 1 - r
+        f = k in F
+        ax.add_patch(FancyBboxPatch((x + 0.05, y + 0.05), 0.9, 0.9, boxstyle="round,pad=0,rounding_size=0.12",
+                                    fc=_INK if f else "white", ec=_LINE if not f else _INK, lw=0.6))
+        if k in R:
+            ax.add_patch(plt.Circle((x + 0.5, y + 0.5), 0.36, fc="none", ec="white" if f else _INK, lw=1.6))
+        if k in C:
+            ax.plot([x + 0.2, x + 0.8], [y + 0.2, y + 0.8], color=_GRAY, lw=1.2)
+        if numbers:
+            ax.text(x + 0.5, y + 0.5, str(k), ha="center", va="center", fontsize=fs, color="white" if f else (_GRAY if k in C else _INK))
+    if title:
+        ax.set_title(title, fontsize=9.5, loc="left", color="#222222")
+    if own:
+        if save:
+            _save(fig, save)
+        plt.show()
+
+def grid_panels(N, steps, titles=None, cols=10, cross_fn=None, ncol=None, save=None):
+    """表を何枚も並べる。steps の各要素を cross_fn(step) に渡して、消す数の集合を作る（例：篩の途中経過）"""
+    k = len(steps); ncol = ncol or k
+    nrow = math.ceil(k / ncol); rows = math.ceil(N / cols)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(0.42 * cols * ncol + 0.6, 0.42 * rows * nrow + 0.8), squeeze=False)
+    for i, st in enumerate(steps):
+        ax = axes[i // ncol][i % ncol]
+        number_grid(N, cross=cross_fn(st) if cross_fn else st, cols=cols, ax=ax, cell=0.42,
+                    title=(titles[i] if titles else None))
+    for j in range(k, nrow * ncol):
+        axes[j // ncol][j % ncol].axis("off")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def compare_grid(N, hand, machine, cols=10, title=None, save=None):
+    """手の結果と機械の結果を一枚の表で照らす：両方＝黒、機械だけ＝丸、手だけ＝斜線"""
+    H, M = _as_set(hand, N), _as_set(machine, N)
+    both, only_m, only_h = H & M, M - H, H - M
+    t = title or f"手と機械を照らす（1〜{N}）：黒＝両方、丸＝機械だけ、斜線＝手だけ"
+    number_grid(N, fill=both, ring=only_m, cross=only_h, cols=cols, title=t, save=save)
+    if not only_m and not only_h:
+        print("手と機械は一致（食い違いなし）")
+    else:
+        print("機械だけ：", sorted(only_m) or "なし", "／ 手だけ：", sorted(only_h) or "なし")
+
+def count_bars(N, f, highlight=None, title=None, ylabel="", save=None):
+    """1〜N の棒グラフ。highlight（集合か判定関数）の数は黒、それ以外は灰色"""
+    Hs = _as_set(highlight, N)
+    vals = [f(n) for n in range(1, N + 1)]
+    fig, ax = plt.subplots(figsize=(min(12, 0.11 * N + 1.5), 2.8))
+    ax.bar(range(1, N + 1), vals, color=[_INK if n in Hs else _GRAY for n in range(1, N + 1)], width=0.75)
+    ax.set_xlim(0, N + 1); ax.set_xlabel("n"); ax.set_ylabel(ylabel)
+    if title:
+        ax.set_title(title, fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def dots_remainder(n, d, title=None, ax=None, save=None):
+    """n 個の点を d 個ずつの行に並べる。余りの点は黒。「d で割って何余る」の絵"""
+    q, r = divmod(n, d)
+    rows = q + (1 if r else 0)
+    own = ax is None
+    if own:
+        fig, ax = plt.subplots(figsize=(min(10, 0.28 * d + 1.5), min(8, 0.28 * rows + 0.9)))
+    ax.set_xlim(-0.6, d + 0.6); ax.set_ylim(-0.6, rows + 0.6); ax.set_aspect("equal"); ax.axis("off")
+    for i in range(n):
+        rr, cc = divmod(i, d)
+        leftover = i >= q * d
+        ax.add_patch(plt.Circle((cc + 0.5, rows - 1 - rr + 0.5), 0.34, fc=_INK if leftover else "white", ec=_INK, lw=0.7))
+    ax.set_title(title or f"{n} = {d} × {q} + {r}　（{d} で割ると {r} 余る）", fontsize=9.5, loc="left", color="#222222")
+    if own:
+        if save:
+            _save(fig, save)
+        plt.show()
+
+def remainder_panels(n, ds, save=None):
+    """同じ n を、いろいろな d で割った余りの絵を並べる"""
+    fig, axes = plt.subplots(1, len(ds), figsize=(3.2 * len(ds), 4.2))
+    for ax, d in zip(axes, ds):
+        dots_remainder(n, d, ax=ax)
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def share_dots(a, b, groups, labels=("あめ", "チョコ"), save=None):
+    """a 個と b 個を groups 人で分ける絵：列が人。余りは列の外に出す"""
+    fig, axes = plt.subplots(1, 2, figsize=(0.55 * groups + 4, 3.4), gridspec_kw={"width_ratios": [1, 1]})
+    for ax, n, lab in zip(axes, (a, b), labels):
+        q, r = divmod(n, groups)
+        ax.set_xlim(-0.6, groups + 1.8); ax.set_ylim(-0.6, max(q, 1) + 1.2); ax.set_aspect("equal"); ax.axis("off")
+        for i in range(n):
+            if i < q * groups:
+                c, rr = i % groups, i // groups
+                ax.add_patch(plt.Circle((c + 0.5, rr + 0.5), 0.36, fc="white", ec=_INK, lw=0.8))
+            else:
+                j = i - q * groups
+                ax.add_patch(plt.Circle((groups + 1.2, j + 0.5), 0.36, fc=_INK, ec=_INK))
+        for c in range(groups):
+            ax.text(c + 0.5, -0.35, str(c + 1), ha="center", va="center", fontsize=7, color=_GRAY)
+        ax.set_title(f"{lab} {n} 個を {groups} 人で：1 人 {q} 個、余り {r}", fontsize=9.5, loc="left", color="#222222")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def sticks(a, b, upto, save=None):
+    """長さ a と b の棒をつなげて並べ、端がそろう位置に印"""
+    fig, ax = plt.subplots(figsize=(10, 2.2))
+    for row, L, lab in ((1, a, f"{a} cm"), (0, b, f"{b} cm")):
+        x = 0
+        while x < upto:
+            ax.add_patch(plt.Rectangle((x, row * 0.9), min(L, upto - x), 0.6, fc="white" if row else _LIGHT, ec=_INK, lw=0.8))
+            x += L
+        ax.text(-0.5, row * 0.9 + 0.3, lab, ha="right", va="center", fontsize=9)
+    common = [x for x in range(1, upto + 1) if x % a == 0 and x % b == 0]
+    for x in common:
+        ax.plot([x, x], [-0.2, 1.7], color=_INK, lw=1.4, ls="--")
+        ax.text(x, 1.85, str(x), ha="center", va="bottom", fontsize=9, color=_INK)
+    ax.set_xlim(-6, upto + 1); ax.set_ylim(-0.4, 2.3); ax.axis("off")
+    ax.set_title(f"端がそろう長さ：{', '.join(map(str, common)) or 'なし'}（{upto} まで）", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def rectangles_of(n, ax=None, title=None):
+    """n 枚のタイルで作れる長方形をすべて描く"""
+    rects = [(a, n // a) for a in range(1, math.isqrt(n) + 1) if n % a == 0]
+    own = ax is None
+    W = sum(b for _, b in rects) + 1.2 * len(rects)
+    H = max(a for a, _ in rects) + 1
+    if own:
+        fig, ax = plt.subplots(figsize=(min(12, 0.22 * W + 0.5), min(5, 0.22 * H + 0.9)))
+    x = 0
+    for a, b in rects:
+        for i in range(a):
+            for j in range(b):
+                ax.add_patch(plt.Rectangle((x + j, i), 0.92, 0.92, fc=_INK if a == b else _GRAY, ec="white", lw=0.3))
+        ax.text(x, a + 0.25, f"{a} × {b}", fontsize=8, color=_INK)
+        x += b + 1.2
+    ax.set_xlim(-0.3, W); ax.set_ylim(-0.3, H + 0.6); ax.set_aspect("equal"); ax.axis("off")
+    ax.set_title(title or f"{n} 枚：{len(rects)} 通り", fontsize=9.5, loc="left", color="#222222")
+    if own:
+        plt.show()
+
+def rectangles_panels(ns, save=None):
+    fig, axes = plt.subplots(len(ns), 1, figsize=(10, 1.6 * len(ns) + 1.5), squeeze=False)
+    for ax, n in zip(axes[:, 0], ns):
+        rectangles_of(n, ax=ax)
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def tiles_square(ns, save=None):
+    """それぞれの枚数で、正方形ができるなら正方形、できなければ一番正方形に近い長方形を描く"""
+    fig, axes = plt.subplots(1, len(ns), figsize=(2.6 * len(ns), 3.2))
+    for ax, n in zip(axes, ns):
+        a = max(d for d in range(1, math.isqrt(n) + 1) if n % d == 0); b = n // a
+        sq = a == b
+        for i in range(a):
+            for j in range(b):
+                ax.add_patch(plt.Rectangle((j, i), 0.92, 0.92, fc=_INK if sq else _GRAY, ec="white", lw=0.3))
+        ax.set_xlim(-0.5, max(b, 9) + 0.5); ax.set_ylim(-0.5, max(a, 9) + 0.5); ax.set_aspect("equal"); ax.axis("off")
+        ax.set_title(f"{n} 枚：{'正方形' if sq else f'{a} × {b}'}\n{factorization_str(n)}", fontsize=9.5, loc="left", color="#222222")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def exponent_bars(ns, save=None):
+    """素因数分解の指数を棒で描く。偶数の指数は黒、奇数は白"""
+    fig, axes = plt.subplots(1, len(ns), figsize=(2.4 * len(ns), 2.6))
+    if len(ns) == 1:
+        axes = [axes]
+    for ax, n in zip(axes, ns):
+        f = sorted(sympy.factorint(n).items())
+        ax.bar([str(p) for p, _ in f], [e for _, e in f], color=[_INK if e % 2 == 0 else "white" for _, e in f], edgecolor=_INK, width=0.6)
+        ax.set_ylim(0, max([e for _, e in f] + [1]) + 0.8); ax.set_yticks(range(0, max([e for _, e in f] + [1]) + 1))
+        ax.set_title(f"{n} = {factorization_str(n)}", fontsize=9.5, loc="left", color="#222222")
+        ax.set_xlabel("素数"); ax.set_ylabel("指数（個数）")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def divisor_lattice(n, save=None):
+    """n の約数を、素数を 1 つかけるごとに 1 段上がる図（ハッセ図）で描く。素因数が 3 種類まで"""
+    f = sorted(sympy.factorint(n).items())
+    ps = [p for p, _ in f]
+    divs = sympy.divisors(n)
+    def exps(d):
+        return tuple(sympy.multiplicity(p, d) for p in ps)
+    levels = {}
+    for d in divs:
+        levels.setdefault(sum(exps(d)), []).append(d)
+    top = max(levels)
+    fig, ax = plt.subplots(figsize=(1.1 * max(len(v) for v in levels.values()) + 1.5, 0.9 * (top + 1) + 0.8))
+    pos = {}
+    for lv, ds in levels.items():
+        ds.sort(key=lambda d: exps(d))
+        for i, d in enumerate(ds):
+            pos[d] = (i - (len(ds) - 1) / 2, lv)
+    for d in divs:
+        for p in ps:
+            if (d * p) in pos:
+                (x1, y1), (x2, y2) = pos[d], pos[d * p]
+                ax.plot([x1, x2], [y1, y2], color=_LINE if p == ps[0] else (_GRAY if p == ps[-1] and len(ps) > 1 else _INK), lw=0.9, zorder=0)
+    for d, (x, y) in pos.items():
+        ax.add_patch(FancyBboxPatch((x - 0.36, y - 0.2), 0.72, 0.4, boxstyle="round,pad=0,rounding_size=0.1", fc="white", ec=_INK, lw=0.8))
+        ax.text(x, y, str(d), ha="center", va="center", fontsize=8.5, color=_INK)
+    ax.set_xlim(-max(len(v) for v in levels.values()) / 2 - 0.7, max(len(v) for v in levels.values()) / 2 + 0.7)
+    ax.set_ylim(-0.6, top + 0.6); ax.axis("off")
+    ax.set_title(f"{n} = {factorization_str(n)} の約数（{len(divs)} 個）：線は「× {'、× '.join(map(str, ps))}」で 1 段上がる", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def endless_tree(n, depth=5, save=None):
+    """1 で分けるのを許すと終わらない木"""
+    fig, ax = plt.subplots(figsize=(4.2, 0.85 * depth + 1))
+    for k in range(depth):
+        y = -k
+        ax.add_patch(FancyBboxPatch((0.6, y - 0.22), 0.9, 0.44, boxstyle="round,pad=0,rounding_size=0.1", fc="white", ec=_INK, lw=0.8))
+        ax.text(1.05, y, str(n), ha="center", va="center", fontsize=10)
+        if k < depth - 1:
+            ax.add_patch(FancyBboxPatch((-0.9, y - 1.22), 0.9, 0.44, boxstyle="round,pad=0,rounding_size=0.1", fc=_INK, ec=_INK))
+            ax.text(-0.45, y - 1, "1", ha="center", va="center", fontsize=10, color="white")
+            ax.plot([1.05, -0.45], [y - 0.22, y - 0.78], color="#666666", lw=0.9)
+            ax.plot([1.05, 1.05], [y - 0.22, y - 0.78], color="#666666", lw=0.9)
+    ax.text(1.05, -depth + 0.55, "…", ha="center", va="center", fontsize=14)
+    ax.set_xlim(-1.6, 2.2); ax.set_ylim(-depth + 0.2, 0.6); ax.axis("off")
+    ax.set_title(f"{n} = 1 × {n} を許すと、木が終わらない", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def billiard_path(m, n):
+    """左下から 45° に出た玉の道。戻り値：(着いた角, 跳ね返り回数, 通った点)"""
+    x, y, dx, dy, bounces, path = 0, 0, 1, 1, 0, [(0, 0)]
+    while True:
+        x += dx; y += dy; path.append((x, y))
+        at_x, at_y = x in (0, n), y in (0, m)
+        if at_x and at_y:
+            return {(0, m): "左上", (n, m): "右上", (n, 0): "右下"}[(x, y)], bounces, path
+        if at_x:
+            dx = -dx; bounces += 1
+        if at_y:
+            dy = -dy; bounces += 1
+
+def billiard_panels(pairs, save=None):
+    fig, axes = plt.subplots(1, len(pairs), figsize=(3 * len(pairs), 3))
+    if len(pairs) == 1:
+        axes = [axes]
+    for ax, (m, n) in zip(axes, pairs):
+        c, b, path = billiard_path(m, n)
+        ax.plot([p[0] for p in path], [p[1] for p in path], color=_INK, lw=1.3)
+        ax.plot([0], [0], "o", color=_INK, ms=5)
+        ax.set_xticks(range(n + 1)); ax.set_yticks(range(m + 1)); ax.grid(True, color="#dddddd", lw=0.6)
+        ax.set_xlim(0, n); ax.set_ylim(0, m); ax.set_aspect("equal"); ax.tick_params(labelsize=7)
+        ax.set_title(f"{m} × {n}：{c}、{b} 回", fontsize=9.5, loc="left", color="#222222")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def billiard_unfold(m, n, save=None):
+    """跳ね返りを「台を折り返して並べる」と、玉の道はまっすぐな線になる。角に着くのは (L, L)、L は最小公倍数"""
+    L = math.lcm(m, n)
+    fig, ax = plt.subplots(figsize=(min(10, 0.35 * L + 1), min(8, 0.35 * L + 1)))
+    for i in range(L // n):
+        for j in range(L // m):
+            ax.add_patch(plt.Rectangle((i * n, j * m), n, m, fc="white" if (i + j) % 2 == 0 else _LIGHT, ec=_LINE, lw=0.7))
+    ax.plot([0, L], [0, L], color=_INK, lw=1.6)
+    ax.plot([0], [0], "o", color=_INK, ms=5); ax.plot([L], [L], "s", color=_INK, ms=6)
+    ax.set_xlim(0, L); ax.set_ylim(0, L); ax.set_aspect("equal"); ax.set_xticks(range(0, L + 1, n)); ax.set_yticks(range(0, L + 1, m)); ax.tick_params(labelsize=7)
+    ax.set_title(f"{m} × {n} の台を折り返して並べると、道はまっすぐ。着くのは ({L}, {L})　L = 最小公倍数", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def bounce_table(M, N, save=None):
+    """縦 m・横 n の台ごとの跳ね返り回数の表。最大公約数が大きいほど濃い"""
+    fig, ax = plt.subplots(figsize=(0.6 * N + 1.2, 0.6 * M + 1.0))
+    for m in range(1, M + 1):
+        for n in range(1, N + 1):
+            _, b, _ = billiard_path(m, n)
+            g = math.gcd(m, n)
+            shade = 1 - min(0.75, 0.15 * (g - 1))
+            ax.add_patch(plt.Rectangle((n - 0.5, m - 0.5), 1, 1, fc=(shade, shade, shade), ec="white", lw=0.5))
+            ax.text(n, m, str(b), ha="center", va="center", fontsize=7.5, color=_INK if shade > 0.5 else "white")
+    ax.set_xlim(0.5, N + 0.5); ax.set_ylim(0.5, M + 0.5); ax.set_aspect("equal")
+    ax.set_xticks(range(1, N + 1)); ax.set_yticks(range(1, M + 1)); ax.tick_params(labelsize=7)
+    ax.set_xlabel("横 n"); ax.set_ylabel("縦 m")
+    ax.set_title("跳ね返りの回数（濃いほど最大公約数が大きい）", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def stamps_line(a, b, upto, ax=None, save=None):
+    """a 円と b 円で作れる金額を黒、作れない金額を白で、1〜upto の数直線に"""
+    ok = [False] * (upto + 1); ok[0] = True
+    for x in range(1, upto + 1):
+        ok[x] = (x >= a and ok[x - a]) or (x >= b and ok[x - b])
+    own = ax is None
+    if own:
+        fig, ax = plt.subplots(figsize=(min(12, 0.32 * upto + 1), 1.3))
+    for x in range(1, upto + 1):
+        ax.add_patch(FancyBboxPatch((x - 0.45, 0), 0.9, 0.9, boxstyle="round,pad=0,rounding_size=0.15", fc=_INK if ok[x] else "white", ec=_INK, lw=0.6))
+        ax.text(x, 0.45, str(x), ha="center", va="center", fontsize=7, color="white" if ok[x] else _INK)
+    ax.set_xlim(0, upto + 1); ax.set_ylim(-0.2, 1.1); ax.set_aspect("equal"); ax.axis("off")
+    bad = [x for x in range(1, upto + 1) if not ok[x]]
+    ax.set_title(f"{a} 円と {b} 円：作れない金額（白）は {bad if len(bad) < 15 else str(bad[:12]) + ' …'}", fontsize=9, loc="left", color="#222222")
+    if own:
+        if save:
+            _save(fig, save)
+        plt.show()
+
+def stamps_panels(pairs, upto, save=None):
+    fig, axes = plt.subplots(len(pairs), 1, figsize=(min(12, 0.32 * upto + 1), 1.25 * len(pairs)))
+    for ax, (a, b) in zip(axes, pairs):
+        stamps_line(a, b, upto, ax=ax)
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def stamps_lattice(a, b, upto, save=None):
+    """i 枚の a 円と j 枚の b 円で作れる金額の表。upto より大きい金額は薄く"""
+    I, J = upto // a + 1, upto // b + 1
+    fig, ax = plt.subplots(figsize=(0.75 * I + 1.2, 0.6 * J + 1.0))
+    for i in range(I):
+        for j in range(J):
+            v = i * a + j * b
+            ax.add_patch(plt.Rectangle((i - 0.5, j - 0.5), 1, 1, fc="white" if v <= upto else _LIGHT, ec=_LINE, lw=0.5))
+            ax.text(i, j, str(v), ha="center", va="center", fontsize=7.5, color=_INK if v <= upto else _GRAY)
+    ax.set_xlim(-0.5, I - 0.5); ax.set_ylim(-0.5, J - 0.5); ax.set_aspect("equal")
+    ax.set_xticks(range(I)); ax.set_yticks(range(J)); ax.tick_params(labelsize=7)
+    ax.set_xlabel(f"{a} 円の枚数"); ax.set_ylabel(f"{b} 円の枚数")
+    ax.set_title(f"{a} 円 × 枚数 ＋ {b} 円 × 枚数：{upto} までに出てこない金額は？", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def two_squares_pics(ns, save=None):
+    """n 枚を正方形 2 つに並べた絵（できないときは印）"""
+    fig, axes = plt.subplots(1, len(ns), figsize=(2.6 * len(ns), 2.8))
+    for ax, n in zip(axes, ns):
+        found = None
+        for a in range(0, math.isqrt(n) + 1):
+            b2 = n - a * a; b = math.isqrt(b2)
+            if b * b == b2:
+                found = (max(a, b), min(a, b)); break
+        ax.set_aspect("equal"); ax.axis("off")
+        if found:
+            a, b = found
+            for i in range(a):
+                for j in range(a):
+                    ax.add_patch(plt.Rectangle((j, i), 0.92, 0.92, fc=_INK, ec="white", lw=0.3))
+            for i in range(b):
+                for j in range(b):
+                    ax.add_patch(plt.Rectangle((a + 1 + j, i), 0.92, 0.92, fc=_GRAY, ec="white", lw=0.3))
+            ax.set_xlim(-0.5, a + b + 1.5); ax.set_ylim(-0.5, a + 0.5)
+            ax.set_title(f"{n} = {a}² + {b}²", fontsize=9.5, loc="left", color="#222222")
+        else:
+            ax.set_xlim(0, 6); ax.set_ylim(0, 4)
+            ax.text(3, 2, "できない", ha="center", va="center", fontsize=11, color=_GRAY)
+            ax.set_title(f"{n} 枚", fontsize=9.5, loc="left", color="#222222")
+    fig.tight_layout()
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def lockers_strip(n_lockers, persons, save=None):
+    """ロッカーの開閉を、人ごとの行で描く。黒＝開いている"""
+    state = [False] * (n_lockers + 1)
+    fig, ax = plt.subplots(figsize=(0.32 * n_lockers + 1.4, 0.3 * persons + 0.8))
+    for k in range(1, persons + 1):
+        for j in range(k, n_lockers + 1, k):
+            state[j] = not state[j]
+        y = persons - k
+        for j in range(1, n_lockers + 1):
+            ax.add_patch(plt.Rectangle((j - 0.45, y + 0.05), 0.9, 0.9, fc=_INK if state[j] else "white", ec=_LINE, lw=0.5))
+        ax.text(0.2, y + 0.5, f"{k} 人目", ha="right", va="center", fontsize=7, color=_GRAY)
+    for j in range(1, n_lockers + 1):
+        ax.text(j, persons + 0.35, str(j), ha="center", va="center", fontsize=7, color=_GRAY)
+    ax.set_xlim(-2.2, n_lockers + 0.6); ax.set_ylim(-0.1, persons + 0.8); ax.set_aspect("equal"); ax.axis("off")
+    ax.set_title(f"{n_lockers} 個のロッカー、{persons} 人が通ったあと（黒＝開いている）", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def race_lines(N, m=4, a=3, b=1, save=None):
+    """余り a の素数と余り b の素数の個数を、x まで数えて 2 本の線で描く"""
+    s = np.ones(N + 1, dtype=bool); s[:2] = False
+    for i in range(2, int(N ** 0.5) + 1):
+        if s[i]:
+            s[i * i::i] = False
+    primes = np.nonzero(s)[0]
+    ca = np.cumsum(np.isin(np.arange(N + 1), primes[primes % m == a]))
+    cb = np.cumsum(np.isin(np.arange(N + 1), primes[primes % m == b]))
+    fig, ax = plt.subplots(figsize=(9, 3))
+    ax.plot(np.arange(N + 1), ca, color=_INK, lw=1.2, label=f"{m} で割って {a} 余る素数の個数")
+    ax.plot(np.arange(N + 1), cb, color=_GRAY, lw=1.2, label=f"{m} で割って {b} 余る素数の個数")
+    ax.set_xlabel("x"); ax.set_ylabel("個数"); ax.legend(fontsize=8, frameon=False)
+    ax.set_title(f"x までの素数を余りで数える（{N} まで）：黒と灰色、どっちが上？", fontsize=9.5, loc="left", color="#222222")
+    if save:
+        _save(fig, save)
+    plt.show()
+    print(f"{N} まで：余り {a} が {int(ca[-1])} 個、余り {b} が {int(cb[-1])} 個")
+
 # ---------- 結果を地図アプリへ送る（来歴つき） ----------
 def _nb_sha(notebook):
     """ノートの本文（コードと文章）だけから作る指紋。出力・実行順・手の結果を書くセルは含めない。同じ版なら同じ値になる"""
