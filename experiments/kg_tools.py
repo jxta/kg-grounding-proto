@@ -834,6 +834,199 @@ def race_lines(N, m=4, a=3, b=1, save=None):
     plt.show()
     print(f"{N} まで：余り {a} が {int(ca[-1])} 個、余り {b} が {int(cb[-1])} 個")
 
+# ---------- ノートの中の AI（サーバなし。JupyterLite でも手元でも動く） ----------
+# jupyter-mynerva の「ノートの物語を読んで会話する」を、カーネルの中だけで小さく作ったもの。
+# 見るもの：このセッションで実行したセル（コードと表示）と、保存されたノートの文章。
+# できないこと：セルを勝手に入れる・動かす。コードは提案として出すだけ（貼るのはきみ）。それがこの実験室の約束にも合う。
+_AI = {"key": None, "model": "claude-sonnet-5", "workspace": None, "log": [], "cells": [], "hooked": False, "buf": None}
+
+_AI_RULES = """あなたは中学生の「手と機械の実験室」で、Jupyter ノートの中にいる相談相手です。日本語で、短く、やさしく答えます。
+守ること：
+- 答えや定理を先に言わない。まず「何が見えた？」「どこまで確かめた？」と聞き返す。生徒が自分で気づけるように、次の一手を一つだけ示す
+- 問い・手でやったこと・手の結果・予想は生徒のもの。書き換えを頼まれても、生徒に書いてもらう
+- コードを提案するときは、Python のコードブロック 1 つだけ。1 行目に「# [AI]」と書く。生徒が自分で新しいセルに貼って動かす。ファイル・ネットワークは使わない
+- 使える道具：math, random, numpy, sympy, matplotlib.pyplot(plt)、kg_tools（sieve_grid, factor_tree/leaves/show_trees, divisor_grid, divisor_lattice, number_grid, compare_grid, count_bars, prime_race, race_lines, euclid_numbers, factorization_str など）
+- 機械が正しいとは限らないし、あなたも間違える。「確かめてみて」と添える
+- 手の結果と機械の結果が食い違っていたら、どちらが間違えたかを一緒に考える（機械が正しいと決めつけない）"""
+
+def _ai_hook():
+    """実行した各セルのコードと表示（print の中身）を覚える。IPython のとき"""
+    if _AI["hooked"]:
+        return
+    try:
+        from IPython import get_ipython
+        ip = get_ipython()
+        if ip is None:
+            return
+        class _Tee:
+            def __init__(self, base):
+                self.base = base
+            def write(self, t):
+                self.base.write(t)
+                if _AI["buf"] is not None:
+                    _AI["buf"].append(t)
+            def flush(self):
+                self.base.flush()
+            def __getattr__(self, k):
+                return getattr(self.base, k)
+        def pre(info):
+            _AI["buf"] = []
+            _AI["_src"] = getattr(info, "raw_cell", "")
+            if not isinstance(sys.stdout, _Tee):
+                sys.stdout = _Tee(sys.stdout)
+        def post(result):
+            out = "".join(_AI["buf"] or [])
+            _AI["buf"] = None
+            src = _AI.get("_src", "")
+            if src.strip() and not src.strip().startswith(("ai(", "%%ai", "ai_setup(")):
+                _AI["cells"].append({"source": src, "output": out[-1500:]})
+                _AI["cells"] = _AI["cells"][-40:]
+        ip.events.register("pre_run_cell", pre)
+        ip.events.register("post_run_cell", post)
+        _AI["hooked"] = True
+    except Exception:
+        pass
+
+def ai_setup(key=None, model=None, workspace=None):
+    """API キーを覚える（このセッションだけ。どこにも保存しない）。model は API の ID（例：claude-sonnet-5, claude-opus-5-5）"""
+    if key:
+        _AI["key"] = key.strip()
+    if model:
+        _AI["model"] = model.strip()
+    if workspace:
+        _AI["workspace"] = workspace.strip()
+    _ai_hook()
+    print("AI の準備：", "キーあり" if _AI["key"] else "キーなし（ai_setup(\"sk-…\") で入れる）", "／モデル", _AI["model"])
+
+def _find_notebook(notebook=None):
+    """このノートのファイルを探す：指定があればそれ、なければ実行したセルと同じコードを含む .ipynb"""
+    import glob
+    if notebook and os.path.exists(notebook):
+        return notebook
+    srcs = [c["source"].strip() for c in _AI["cells"] if len(c["source"].strip()) > 20]
+    best, best_n = None, 0
+    for f in glob.glob("*.ipynb"):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                text = fh.read()
+        except Exception:
+            continue
+        n = sum(1 for src in srcs if src.splitlines()[0][:60] in text)
+        if n > best_n:
+            best, best_n = f, n
+    return best
+
+def _ai_context(notebook=None, max_chars=7000):
+    """AI に渡す文脈：ノートの文章（見出しと本文）と、実行したセル（コードと表示）"""
+    parts = []
+    nb = _find_notebook(notebook)
+    if nb:
+        try:
+            with open(nb, encoding="utf-8") as f:
+                cells = json.load(f).get("cells", [])
+            md = []
+            for c in cells:
+                if c.get("cell_type") == "markdown":
+                    src = c.get("source", "")
+                    src = "".join(src) if isinstance(src, list) else src
+                    md.append(src.strip())
+            parts.append(f"## ノート {nb} の文章\n" + "\n\n".join(md))
+        except Exception:
+            pass
+    if _AI["cells"]:
+        runs = []
+        for c in _AI["cells"][-12:]:
+            runs.append("```python\n" + c["source"].strip() + "\n```\n表示：\n" + (c["output"].strip() or "（表示なし、または図）"))
+        parts.append("## このセッションで実行したセル（古い順）\n" + "\n\n".join(runs))
+    text = "\n\n".join(parts)
+    return text[-max_chars:] if len(text) > max_chars else text
+
+def _ai_request(messages, system):
+    """Anthropic API を呼ぶ。JupyterLite（Pyodide のワーカー）では同期 XHR、手元では urllib"""
+    body = json.dumps({"model": _AI["model"], "max_tokens": 1200, "system": system, "messages": messages})
+    headers = {"content-type": "application/json", "x-api-key": _AI["key"], "anthropic-version": "2023-06-01",
+               "anthropic-dangerous-direct-browser-access": "true"}
+    if _AI["workspace"]:
+        headers["anthropic-workspace-id"] = _AI["workspace"]
+    url = "https://api.anthropic.com/v1/messages"
+    if sys.platform == "emscripten":
+        import js
+        xhr = js.XMLHttpRequest.new()
+        xhr.open("POST", url, False)
+        for k, v in headers.items():
+            xhr.setRequestHeader(k, v)
+        xhr.send(body)
+        status, text = int(xhr.status), str(xhr.responseText)
+    else:
+        import urllib.request, urllib.error
+        req = urllib.request.Request(url, data=body.encode("utf-8"), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                status, text = r.status, r.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            status, text = e.code, e.read().decode("utf-8", "replace")
+    if status != 200:
+        try:
+            detail = json.loads(text).get("error", {}).get("message", text[:200])
+        except Exception:
+            detail = text[:200]
+        raise RuntimeError(f"API {status}：{detail}")
+    data = json.loads(text)
+    return "\n".join(c.get("text", "") for c in data.get("content", []) if c.get("type") == "text").strip()
+
+def _ai_save_log(notebook):
+    """会話を .kgchat/ に残す（report() が ai_session として来歴に入れる）"""
+    try:
+        os.makedirs(".kgchat", exist_ok=True)
+        name = f"{(notebook or 'notebook').replace('.ipynb', '')}-{datetime.now().strftime('%Y%m%d-%H%M')}.json"
+        path = os.path.join(".kgchat", _AI.get("logname") or name)
+        _AI["logname"] = os.path.basename(path)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"notebook": notebook, "model": _AI["model"], "log": _AI["log"]}, f, ensure_ascii=False, indent=1)
+        return _AI["logname"]
+    except Exception:
+        return None
+
+def ai(question, notebook=None):
+    """ノートの中で AI に聞く。例：ai("手の結果と機械の結果がずれた。どこを見ればいい？")
+    AI はこのセッションで実行したセルと、ノートの文章を読んで答える。答えは言わず、次の一手を示す。
+    コードを提案するときは 1 行目が # [AI] のブロック。自分で新しいセルに貼って動かす（勝手には入れない）。"""
+    _ai_hook()
+    if not _AI["key"]:
+        print("API キーがまだです。ai_setup(\"sk-…\") を先に実行してください（地図アプリの設定に入れたキーと同じでよい。このセッションだけ覚えます）")
+        return
+    ctx = _ai_context(notebook)
+    system = _AI_RULES + "\n\n以下は生徒のノートの文脈です。\n\n" + ctx
+    _AI["log"].append({"role": "user", "content": question, "t": now()})
+    messages = [{"role": m["role"], "content": m["content"]} for m in _AI["log"][-12:]]
+    try:
+        reply = _ai_request(messages, system)
+    except Exception as e:
+        _AI["log"].pop()
+        print("AI に聞けませんでした：", e)
+        return
+    _AI["log"].append({"role": "assistant", "content": reply, "t": now()})
+    name = _ai_save_log(_find_notebook(notebook))
+    print("AI：", reply)
+    if "# [AI]" in reply:
+        print("\n（提案のコードは、自分で新しいセルに貼って動かす。動かす前に何を数えるか読む）")
+    if name:
+        print(f"（会話は .kgchat/{name} に残る）")
+
+try:
+    from IPython.core.magic import register_cell_magic
+    @register_cell_magic
+    def ai_magic(line, cell):
+        """%%ai のセルで、複数行の質問を書く"""
+        ai(cell.strip(), notebook=line.strip() or None)
+    try:
+        from IPython import get_ipython
+        get_ipython().register_magic_function(ai_magic, "cell", "ai")
+    except Exception:
+        pass
+except Exception:
+    pass
+
 # ---------- 結果を地図アプリへ送る（来歴つき） ----------
 def _nb_sha(notebook):
     """ノートの本文（コードと文章）だけから作る指紋。出力・実行順・手の結果を書くセルは含めない。同じ版なら同じ値になる"""
@@ -868,12 +1061,13 @@ def _ai_cells(notebook):
         return None
 
 def _ai_session():
-    """ノートの中の AI（jupyter-mynerva）の会話の記録があれば、いちばん新しいものの名前"""
+    """ノートの中の AI（ai() か jupyter-mynerva）の会話の記録があれば、いちばん新しいものの名前"""
     try:
         import glob
         files = []
         for d in [".mynerva/sessions", "../.mynerva/sessions", os.path.expanduser("~/.mynerva/sessions")]:
             files += glob.glob(os.path.join(d, "*.mnchat"))
+        files += glob.glob(os.path.join(".kgchat", "*.json"))      # ノートの中の ai() の会話
         if not files:
             return None
         return os.path.basename(max(files, key=os.path.getmtime))

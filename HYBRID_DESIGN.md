@@ -133,13 +133,29 @@ NII の [jupyter-mynerva](https://github.com/NII-cloud-operation/jupyter-mynerva
 `report()` は、`# [AI]` の印がついたセルの数（`ai_cells`）と、いちばん新しい会話の記録の名前（`ai_session`）を来歴に入れる。
 アプリの記録には「AI が入れたセル n 個」の印が出る。AI が入れたセルは本文の一部なので、ノートの指紋は公開の記録と違う版になる——「版がちがう」と「AI が入れたセル n 個」が並ぶことで、何が起きたかが読める。
 
-### どこで動くか
+### JupyterLite でも：`ai()`（サーバなしの小さな相談相手）
+
+Mynerva はサーバ拡張（Python）と Go の実行ファイルを使うので、GitHub Pages の JupyterLite ではそのままは動かない。
+そこで、Mynerva の「ノートの物語を読んで会話する」を **カーネルの中だけ** で小さく作った（`kg_tools.ai()`）：
+
+- `ai_setup("sk-…")` でキーをそのセッションだけ覚え、`ai("聞きたいこと")`（または `%%ai` セル）で聞く
+- AI が読むもの：このセッションで **実行したセルのコードと表示**（IPython の実行フックで集める）と、保存されたノートの **文章**（見出しと本文）。出力まで見えるので「手と機械がずれた」相談ができる
+- API はカーネルから直接呼ぶ（JupyterLite では Pyodide のワーカーから同期 XHR、手元では urllib）。サーバもプロキシもない。キーは生徒か先生のもの
+- system prompt はこの実験室の約束そのもの（答えを言わない、手の結果は書き換えない、コードは `# [AI]` で始まる提案だけ）
+- **セルは勝手に入れない・動かさない**。提案のコードは生徒が自分で新しいセルに貼って動かす——承認の代わりに「貼る」という手が残る
+- 会話は `.kgchat/*.json` に残り、`report()` が `ai_session` として来歴に入れる
+
+Mynerva との違いは、AI がノートを **書き換えられない** こと（目次から節を自分で取りに行く探索もしない）。この実験室の約束から見ると、それはむしろ望ましい制限で、Mynerva を入れられない場でも同じ形の対話が成り立つ。
+本物の Mynerva 相当（右パネル、目次→節→出力の探索、承認つきの編集）を JupyterLite で動かすには、Mynerva の JupyterLab 側拡張に「サーバなしモード」（LLM を直接呼ぶ／ノートの問い合わせをブラウザ側で行う／会話をブラウザの保存に置く）を足す必要がある。Mynerva は文脈の取り出し（TypeScript）とサーバ（LLM 代理・nblibram・保存）を分けて設計されているので、技術的には足せる。NII のチームへの提案の候補。
+
+### どこで動くか（Mynerva 本体）
 
 Mynerva はサーバ拡張（Python）と `nblibram`（Go）を使うので、GitHub Pages の JupyterLite では動かない。**Binder** で動く（`binder/` に設定。`postBuild` で `nblibram` を入れ、パズルノートを作る）。教室では JupyterHub に入れる。
 API キーは Mynerva パネルの設定に各自のものを入れる。教室で生徒にキーを配らない形は、同じチームの [Enki Gate](https://github.com/yacchin1205/enki-gate)（LLM ゲートウェイ、端末認証）を使う道がある（Mynerva の開発版が対応）。
 
 ### 先に進めるなら
 
+- Mynerva に **サーバなしモード**（上）があれば、JupyterLite でも右パネルの AI が動く
 - Mynerva の system prompt は固定（「Jupyter notebook assistant」）。**フォルダごとの指示ファイル**（例：`.mynerva/instructions.md`）を system prompt に足せる仕組みがあると、「約束」をノートに書かなくても済む。NII のチームに提案したい
 - Mynerva が入れるセルに `# [AI]` を自動で付ける（metadata でもよい）と、約束に頼らずに数えられる
 - 実ブラウザ・実教室では未検証
