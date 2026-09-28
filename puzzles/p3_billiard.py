@@ -51,14 +51,14 @@ for (m, n), (hc, hb) in hand.items():
     print(f"{m} × {n}：手 {hc}・{hb} 回、機械 {c}・{b} 回 → {ok}")
 
 # %%
-fig, axes = plt.subplots(1, 4, figsize=(12, 3))
-for ax, (m, n) in zip(axes, [(3, 5), (4, 6), (4, 7), (6, 9)]):
-    c, b, path = billiard(m, n)
-    ax.plot([p[0] for p in path], [p[1] for p in path], color="#111", lw=1.2)
-    ax.set_xticks(range(n + 1)); ax.set_yticks(range(m + 1)); ax.grid(True, color="#ddd", lw=0.6)
-    ax.set_xlim(0, n); ax.set_ylim(0, m); ax.set_aspect("equal")
-    ax.set_title(f"{m} × {n}：{c}、{b} 回", fontsize=10, loc="left")
-plt.tight_layout(); plt.show()
+billiard_panels([(3, 5), (4, 6), (4, 7), (6, 9), (5, 5)])
+
+# 跳ね返りを「台を折り返して並べる」と、道はまっすぐな線になる
+billiard_unfold(3, 5)
+billiard_unfold(4, 6)
+
+# 台の大きさごとの跳ね返り回数の表（濃いほど最大公約数が大きい）
+bounce_table(8, 10)
 
 # %% [markdown]
 # **見るところ**：跳ね返りの回数と、m と n の共通の約数（最大公約数）の関係。着く角は、m と n を最大公約数で割った数の偶奇で決まる？
