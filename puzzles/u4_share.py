@@ -41,6 +41,10 @@ g, l = math.gcd(a, b), math.lcm(a, b)
 print("両方の約数（機械）：", common, "→ 最大", g, "／手：", hand_people, "→ 最大", hand_max, "→", "一致" if common == sorted(hand_people) and g == hand_max else "食い違い")
 print("端がそろう長さ（機械）：", [l, 2 * l], "／手：", hand_align, "→", "一致" if hand_align[:2] == [l, 2 * l] else "食い違い")
 
+share_dots(24, 36, 12)      # 12 人で分けると、どちらも余りなし
+share_dots(24, 36, 8)       # 8 人だと？
+sticks(24, 36, 150)         # 棒の端がそろう所
+
 def side_by_side(a, b):
     fa, fb = sympy.factorint(a), sympy.factorint(b)
     ps = sorted(set(fa) | set(fb))
@@ -53,6 +57,8 @@ def side_by_side(a, b):
     print(f"大きい方の指数 → {l} = {factorization_str(l)}（最小公倍数）")
 
 side_by_side(24, 36)
+exponent_bars([24, 36, 12, 72])   # 24 と 36 の指数の、小さい方が 12、大きい方が 72
+divisor_lattice(12)               # 最大公約数 12 の約数＝両方の約数
 
 # %% [markdown]
 # **見るところ**：素因数分解を並べると、共通の部分（小さい方の指数）が最大公約数、両方をおおう部分（大きい方の指数）が最小公倍数。
