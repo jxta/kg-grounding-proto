@@ -7,3 +7,12 @@ mkdir -p "$HOME/.local/bin"
 curl -sL https://github.com/NII-cloud-operation/nblibram/releases/latest/download/nblibram_linux_amd64.tar.gz | tar xz -C "$HOME/.local/bin" nblibram || echo "nblibram のダウンロードに失敗（AI 会話は使えないが、ノートは動く）"
 chmod +x "$HOME/.local/bin/nblibram" 2>/dev/null || true
 jupyter server extension enable jupyter_mynerva 2>/dev/null || true
+mkdir -p "$HOME/.jupyter"
+cat >> "$HOME/.jupyter/jupyter_server_config.py" <<'PY'
+# kg_tools.ai_accept() がノート画面にセルを入れるために、ページから app を見えるようにする
+c.LabApp.expose_app_in_browser = True
+try:
+    c.JupyterNotebookApp.expose_app_in_browser = True
+except Exception:
+    pass
+PY
