@@ -834,6 +834,7 @@ def race_lines(N, m=4, a=3, b=1, save=None):
     plt.show()
     print(f"{N} まで：余り {a} が {int(ca[-1])} 個、余り {b} が {int(cb[-1])} 個")
 
+
 # ---------- ノートの中の AI（サーバなし。JupyterLite でも手元でも動く） ----------
 # jupyter-mynerva の「ノートの物語を読んで会話する」を、カーネルの中だけで小さく作ったもの。
 # 見るもの：このセッションで実行したセル（コードと表示）と、保存されたノートの文章。
@@ -844,7 +845,7 @@ _AI_RULES = """あなたは中学生の「手と機械の実験室」で、Jupyt
 守ること：
 - 答えや定理を先に言わない。まず「何が見えた？」「どこまで確かめた？」と聞き返す。生徒が自分で気づけるように、次の一手を一つだけ示す
 - 問い・手でやったこと・手の結果・予想は生徒のもの。書き換えを頼まれても、生徒に書いてもらう
-- コードを提案するときは、Python のコードブロック 1 つだけ。1 行目に「# [AI]」と書く。生徒が自分で新しいセルに貼って動かす。ファイル・ネットワークは使わない
+- コードを提案するときは、Python のコードブロック 1 つだけ。1 行目に「# [AI]」と書く。生徒が ai_accept() で新しいセルとして入れ、自分で動かす。ファイル・ネットワークは使わない。すでに実行済みのセルの結果は使ってよい
 - 使える道具：math, random, numpy, sympy, matplotlib.pyplot(plt)、kg_tools（sieve_grid, factor_tree/leaves/show_trees, divisor_grid, divisor_lattice, number_grid, compare_grid, count_bars, prime_race, race_lines, euclid_numbers, factorization_str など）
 - 機械が正しいとは限らないし、あなたも間違える。「確かめてみて」と添える
 - 手の結果と機械の結果が食い違っていたら、どちらが間違えたかを一緒に考える（機械が正しいと決めつけない）"""
@@ -887,6 +888,85 @@ def _ai_hook():
     except Exception:
         pass
 
+# --- ノート画面とのやりとり（JS の出力を通す。JupyterLite の設定 exposeAppInBrowser で window.jupyterapp が見える） ---
+_JS_SYNC = r"""(function(){try{
+var app=window.jupyterapp; var p=app&&app.shell&&app.shell.currentWidget; var nb=p&&p.content; if(!nb||!nb.model){return;}
+var txt=function(t){return Array.isArray(t)?t.join(""):(t==null?"":String(t));};
+var cells=nb.model.sharedModel.cells.map(function(c){var t=c.cell_type; var src=c.getSource?c.getSource():txt(c.source); var out="";
+ if(t==="code"&&c.getOutputs){c.getOutputs().forEach(function(o){ if(o.output_type==="stream") out+=txt(o.text); else if(o.output_type==="error") out+="ERROR "+(o.ename||"")+": "+(o.evalue||"")+"\n"; else if(o.data&&o.data["text/plain"]) out+=txt(o.data["text/plain"])+"\n"; else if(o.data&&o.data["image/png"]) out+="[図]\n"; });}
+ return {t:t, s:src, o:out.slice(-1500)};});
+var b64=btoa(unescape(encodeURIComponent(JSON.stringify(cells))));
+var k=p.sessionContext&&p.sessionContext.session&&p.sessionContext.session.kernel; if(!k){return;}
+k.requestExecute({code:"import kg_tools as _k; _k._ai_live('"+b64+"')", silent:true, store_history:false});
+}catch(e){console.warn("kg sync",e);}})();"""
+
+_JS_INSERT = r"""(function(){try{
+var app=window.jupyterapp; var p=app&&app.shell&&app.shell.currentWidget; var nb=p&&p.content; if(!nb||!nb.model){console.warn("kg insert: no notebook");return;}
+var src=decodeURIComponent(escape(atob("__B64__")));
+var cells=nb.model.sharedModel.cells; var i=nb.activeCellIndex;
+for(var j=cells.length-1;j>=0;j--){var s=cells[j].getSource?cells[j].getSource():String(cells[j].source||""); if(s.indexOf("ai_accept(")>=0){i=j;break;}}
+if(i+1<cells.length){var nxt=cells[i+1].getSource?cells[i+1].getSource():String(cells[i+1].source||""); if(nxt===src){return;}}
+nb.model.sharedModel.insertCell(i+1,{cell_type:"code",source:src,metadata:{tags:["ai"]}});
+nb.activeCellIndex=i+1;
+}catch(e){console.warn("kg insert",e);}})();"""
+
+def _ai_display_js(code):
+    """JS をノート画面で実行させる（出力として渡す）。IPython でなければ何もしない"""
+    try:
+        from IPython.display import display, Javascript
+        display(Javascript(code))
+        return True
+    except Exception:
+        return False
+
+def _ai_live(b64):
+    """ノート画面から届いた、いまのノート全体（文章・コード・表示）。JS から呼ばれる"""
+    try:
+        import base64
+        _AI["live"] = json.loads(base64.b64decode(b64).decode("utf-8"))
+    except Exception:
+        pass
+
+def _ai_last_proposal():
+    """いちばん新しい AI の返事から、# [AI] で始まるコードブロックを取り出す"""
+    for m in reversed(_AI["log"]):
+        if m["role"] != "assistant":
+            continue
+        import re
+        blocks = re.findall(r"```(?:python)?\s*\n(.*?)```", m["content"], re.S)
+        blocks = [b.strip("\n") for b in blocks if "# [AI]" in b]
+        if blocks:
+            return blocks[-1]
+    return None
+
+def ai_accept():
+    """いちばん新しい提案のコードを、このセルのすぐ下に新しいセルとして入れる（動かすのはきみ）。
+    ノート画面と話せないとき（手元の Jupyter など）は、コードを表示するので自分で貼る。"""
+    code = _ai_last_proposal()
+    if not code:
+        print("入れられる提案がまだありません。先に ai(\"…\") で聞いてください（提案は # [AI] で始まるコードブロック）")
+        return
+    import base64
+    b64 = base64.b64encode(code.encode("utf-8")).decode("ascii")
+    if _ai_display_js(_JS_INSERT.replace("__B64__", b64)):
+        print("提案のコードをこの下に新しいセルとして入れました（1 行目が # [AI]）。読んでから、自分で動かしてください。入っていなければ下のコードを貼る：")
+    print(code)
+    _ai_display_js(_JS_SYNC)
+
+def ai_help():
+    print("""ノートの中の AI の使い方
+  ai_setup("sk-…")            キーをこのセッションだけ覚える（どこにも保存しない）
+  ai("聞きたいこと")           実行したセルの表示とノートの文章を読んで答える。答えは言わず、次の一手を一つ。続けて聞ける
+  %%ai                        セルの 2 行目以降に、長い質問を書く
+  ai_accept()                 いちばん新しい提案のコードを、下に新しいセルとして入れる（入れるだけ。動かすのはきみ）
+  ai_forget()                 会話をやり直す
+できないこと：セルを勝手に入れる・書き換える・消す・動かす。手の結果・予想を書き換える。答えを先に言う""")
+
+def ai_forget():
+    """会話を最初から"""
+    _AI["log"] = []; _AI["logname"] = None
+    print("会話を忘れました（ノートの記録 .kgchat/ は残ります）")
+
 def ai_setup(key=None, model=None, workspace=None):
     """API キーを覚える（このセッションだけ。どこにも保存しない）。model は API の ID（例：claude-sonnet-5, claude-opus-5-5）"""
     if key:
@@ -896,7 +976,8 @@ def ai_setup(key=None, model=None, workspace=None):
     if workspace:
         _AI["workspace"] = workspace.strip()
     _ai_hook()
-    print("AI の準備：", "キーあり" if _AI["key"] else "キーなし（ai_setup(\"sk-…\") で入れる）", "／モデル", _AI["model"])
+    print("AI の準備：", "キーあり" if _AI["key"] else "キーなし（ai_setup(\"sk-…\") で入れる）", "／モデル", _AI["model"], "／使い方は ai_help()")
+    _ai_display_js(_JS_SYNC)
 
 def _find_notebook(notebook=None):
     """このノートのファイルを探す：指定があればそれ、なければ実行したセルと同じコードを含む .ipynb"""
@@ -917,8 +998,21 @@ def _find_notebook(notebook=None):
     return best
 
 def _ai_context(notebook=None, max_chars=7000):
-    """AI に渡す文脈：ノートの文章（見出しと本文）と、実行したセル（コードと表示）"""
+    """AI に渡す文脈：ノート画面から届いたいまのノート全体（あれば）。なければノートの文章と、実行したセル（コードと表示）"""
     parts = []
+    live = _AI.get("live")
+    if live:
+        rows = []
+        for c in live:
+            if c.get("t") == "markdown":
+                rows.append(c.get("s", "").strip())
+            else:
+                src = c.get("s", "").strip()
+                if not src or src.startswith(("ai(", "%%ai", "ai_setup(", "ai_accept(", "ai_help(")):
+                    continue
+                rows.append("```python\n" + src + "\n```\n表示：\n" + (c.get("o", "").strip() or "（まだ実行していない、または表示なし）"))
+        text = "## いまのノート（上から順に。文章と、コードとその表示）\n" + "\n\n".join(rows)
+        return text[-max_chars:] if len(text) > max_chars else text
     nb = _find_notebook(notebook)
     if nb:
         try:
@@ -1009,9 +1103,10 @@ def ai(question, notebook=None):
     name = _ai_save_log(_find_notebook(notebook))
     print("AI：", reply)
     if "# [AI]" in reply:
-        print("\n（提案のコードは、自分で新しいセルに貼って動かす。動かす前に何を数えるか読む）")
+        print("\n（この提案を入れるなら、次のセルで ai_accept()。新しいセルとして入るだけで、動かすのはきみ。動かす前に何を数えるか読む）")
     if name:
         print(f"（会話は .kgchat/{name} に残る）")
+    _ai_display_js(_JS_SYNC)      # 次に聞くときのために、いまのノート全体を受け取っておく
 
 try:
     from IPython.core.magic import register_cell_magic
@@ -1026,6 +1121,7 @@ try:
         pass
 except Exception:
     pass
+
 
 # ---------- 結果を地図アプリへ送る（来歴つき） ----------
 def _nb_sha(notebook):
