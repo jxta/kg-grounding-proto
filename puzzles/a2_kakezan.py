@@ -1,0 +1,107 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
+
+# %% [markdown]
+# # 掛け算の糸かけ：n から 2n へ
+#
+# 円に 0〜m−1 の釘を並べる。釘 n から釘 2n（m を超えたら m を引く）へ糸をかける。全部の n でやると、曲線が浮かび上がる。
+#
+# **問い：** 2 倍のとき、どんな形が見える？ 3 倍、4 倍、5 倍では？ 形の「とがり」の数は何で決まる？
+#
+# **手で：** 印刷した 10 釘の盤（0〜9）で、n → 2n（10 を超えたら 10 を引く）を全部かける。次に 20 釘で 3 倍を試す。
+#
+# ![掛け算の糸かけ 20 釘](https://jxta.github.io/kg-grounding-proto/hybrid/print/kakezan_20.svg)
+# %% [markdown]
+# > **AI と実験するときの約束**
+# >
+# > - 問い・手でやったこと・手の結果・予想は、きみが書く。AI は書き換えない（頼まれても、きみに書いてもらう）
+# > - AI は答えや定理を先に言わない。次の一手を一つ示す
+# > - AI が入れるセルは、コードなら 1 行目に `# [AI]`、文章なら先頭に（AI）と書く
+# > - 照合のセル（手と機械を照らすところ）と、最後の `report()` は消さない
+# > - AI の言うことは確かめる。機械が正しいとは限らないし、AI も間違える
+# > - JupyterLite でも AI と話せる：コードのセルで `ai("聞きたいこと")`（先に `ai_setup("sk-…")` でキー）。提案のコードは `ai_accept()` で下に入る（動かすのはきみ）
+# %%
+import sys; sys.path.insert(0, "."); sys.path.insert(0, "../experiments")
+import numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）
+from kg_tools import *
+import numpy as np, math
+
+# 手で見た結果（自分の結果に書き換える）
+hand_shape2 = "ハートみたいな形。とがりが 1 つ"          # 2 倍で見えた形
+hand_cusps = {2: 1, 3: 2}                                # k 倍 → とがりの数（自分で数えた値に）
+hand_guess = "とがりの数は k − 1 になる？"
+m = 200                                                  # 機械で使う釘の数（多いほど曲線が見える）
+K = 9                                                    # k をここまで試す
+
+# %% [markdown]
+# ## 機械で
+
+# %%
+def kakezan(m, k, ax=None, color="#111111", lw=0.5):
+    ang = np.linspace(0, 2 * np.pi, m, endpoint=False) + np.pi / 2
+    x, y = np.cos(ang), np.sin(ang)
+    own = ax is None
+    if own:
+        fig, ax = plt.subplots(figsize=(3.4, 3.4))
+    ax.set_aspect("equal"); ax.axis("off"); ax.set_xlim(-1.1, 1.1); ax.set_ylim(-1.1, 1.1)
+    for i in range(m):
+        j = (k * i) % m
+        ax.plot([x[i], x[j]], [y[i], y[j]], color=color, lw=lw)
+    ax.set_title(f"n → {k}n（釘 {m} 本）", fontsize=9, loc="left", color="#222222")
+    if own:
+        plt.show()
+
+fig, axes = plt.subplots(2, 4, figsize=(13, 6.6))
+for ax, k in zip(axes.flat, range(2, 10)):
+    kakezan(m, k, ax=ax)
+plt.show()
+
+# %% [markdown]
+# ### 照合：手で見えたとがりの数と、機械の絵
+#
+# 機械の絵で、内側に見える曲線の「とがり」（尖った点）を数えて、手の数と照らす。
+
+# %%
+machine_cusps = {k: k - 1 for k in hand_cusps}     # 機械の絵から読み取った数を、ここに自分で書き直してもよい
+for k in hand_cusps:
+    print(f"{k} 倍：手 {hand_cusps[k]}、絵から {machine_cusps[k]}  {'一致' if hand_cusps[k] == machine_cusps[k] else '食い違い。絵を拡大して数え直す'}")
+
+# %% [markdown]
+# ### 釘の数を変えると？
+
+# %%
+fig, axes = plt.subplots(1, 4, figsize=(13, 3.4))
+for ax, mm in zip(axes, [10, 20, 50, 200]):
+    kakezan(mm, 2, ax=ax)
+plt.show()
+print("釘が少ないと線、多いと曲線に見える。曲線は「線の集まり」でできている（包絡線）")
+
+# %% [markdown]
+# ## 予想を試す
+#
+# 予想：「とがりの数は k − 1」。k を 2〜K まで並べた上の絵で、一枚ずつ数えて表に書く。数えた値を `counted` に入れる。
+
+# %%
+counted = {2: 1, 3: 2, 4: 3, 5: 4}                       # 絵を見て数えた値（自分で書く。まだの k は書かない）
+for k, c in counted.items():
+    print(f"k = {k}：数えた {c}、予想 k−1 = {k-1}  {'合う' if c == k - 1 else '合わない'}")
+print(f"→ 数えた範囲で合っている。K = {K} まで数えてから言う")
+
+# %% [markdown]
+# **確かめること**：2 倍の形が「ハート（カージオイド）」と呼ばれるのは、円の上を転がる円が描く形と同じだから。転がる円で描けるか、紙で試す。
+#
+# ここから先の問い：n → 2n + 1 にすると？ n → n² にすると？（コードの `k * i` を書き換える）
+
+# %%
+report("a2_kakezan", f"n → kn の糸かけ（釘 {m} 本）：k = 2 でハート形。とがりの数は数えた範囲で k−1",
+       data={"m": m, "counted_cusps": {str(k): c for k, c in counted.items()}}, hand={"shape2": hand_shape2, "cusps": hand_cusps, "guess": hand_guess},
+       params={"m": m, "K": K}, notebook="a2_kakezan.ipynb")
