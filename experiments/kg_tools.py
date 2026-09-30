@@ -2,7 +2,7 @@
 どの実験ノートも `from kg_tools import *` で使う。
 最後に report() で結果を「地図アプリ」に送る（JupyterLite では同じブラウザの別タブへ、それ以外ではファイルへ）。
 """
-import json, os, sys, copy, math, random
+import json, os, sys, copy, math, random, time
 from datetime import datetime
 
 try:
@@ -382,6 +382,65 @@ def h_split(n):
         if n % a == 0:
             return a, n // a
     return None
+
+# ---------- 素数の個数を、並べずに数える（Lucy_Hedgehog の方法） ----------
+def prime_count(n, progress=None, chunk=1 << 20):
+    """n までの素数の個数 pi(n) を、素数を一つずつ並べずに数える（Lucy_Hedgehog の方法。計算量はだいたい n^(3/4)）。
+    戻り値：(pi(n), 10 のべきごとの個数の辞書 {10: 4, 100: 25, ...})
+    目安（手元の Python）：10**12 で 4 秒、10**13 で 20 秒、10**14 で 2 分・250 MB、10**15 で 10〜15 分・600 MB（見積もり）。ブラウザ（JupyterLite）はその 2〜3 倍"""
+    n = int(n)
+    r = math.isqrt(n)
+    lo = np.arange(r + 1, dtype=np.int64) - 1; lo[0] = 0        # lo[v]   ：「2〜v の整数の個数」から出発し、合成数を消していくと pi(v) になる
+    hi = n // np.arange(1, r + 1, dtype=np.int64) - 1            # hi[i-1] ：同じことを n//i について
+    if progress is None:
+        progress = n >= 10 ** 12
+    t0 = time.time(); nxt = 0.1
+    for p in range(2, r + 1):
+        if lo[p] == lo[p - 1]:                                    # p が素数でなければ何もしない
+            continue
+        sp = int(lo[p - 1]); p2 = p * p
+        m = min(r, n // p2)                                       # hi の更新（i = 1..m）。参照するのは更新前の値だけ
+        for a in range(0, m, chunk):
+            b = min(m, a + chunk)
+            ip = np.arange(a + 1, b + 1, dtype=np.int64) * p
+            small = ip <= r
+            sub = np.empty(b - a, dtype=np.int64)
+            sub[small] = hi[ip[small] - 1]
+            sub[~small] = lo[n // ip[~small]]
+            hi[a:b] -= sub - sp
+        if p2 <= r:                                               # lo の更新（v = r..p2、大きい方から。lo[v//p] は必ず更新前の値）
+            for b in range(r + 1, p2, -chunk):
+                a = max(p2, b - chunk)
+                v = np.arange(a, b, dtype=np.int64)
+                lo[a:b] -= lo[v // p] - sp
+        if progress and p / r >= nxt:
+            print(f"  …{round(nxt * 100)}%（{time.time() - t0:.0f} 秒）"); nxt += 0.1
+    powers = {}
+    k = 1
+    while 10 ** k <= n:
+        x = 10 ** k
+        powers[x] = int(lo[x]) if x <= r else int(hi[n // x - 1])
+        k += 1
+    return int(hi[0]), powers
+
+def li(x):
+    """対数積分 Li(x) = ∫₂ˣ dt / ln t。素数の個数の目安として x / ln x より近い"""
+    try:
+        import mpmath                             # sympy と一緒に入っている。精度が高い
+        return float(mpmath.li(mpmath.mpf(int(x)), offset=True))
+    except Exception:
+        pass
+    from math import log
+    L = log(float(x))
+    s = 0.57721566490153286 + log(L)          # γ + ln ln x
+    term = 1.0
+    for k in range(1, 200):
+        term *= L / k
+        s += term / k
+        if term / k < 1e-16 * abs(s):
+            break
+    return s - 1.0451637801174927            # li(x) - li(2)
+
 
 # ---------- 発展：素数は無限にある（ユークリッドの数） ----------
 def euclid_numbers(k=10):
