@@ -70,7 +70,7 @@ jobs:
       - name: Execute the puzzle notebooks and publish the runs (executed HTML + evidence records)
         run: |
           mkdir -p _runs
-          for nb in puzzles/[pu]*.ipynb; do
+          for nb in puzzles/[apu]*.ipynb; do
             name=$(basename "$nb" .ipynb)
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 --output "$name.ipynb" --output-dir _runs "$nb"
             jupyter nbconvert --to html --output "$name.html" --output-dir _runs "_runs/$name.ipynb"
