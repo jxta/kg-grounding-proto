@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+<style>text{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',sans-serif}.t{font-size:6.5px;fill:#111;text-anchor:middle}.n{font-size:3.6px;fill:#444;text-anchor:middle}.s{font-size:3.6px;fill:#333}.f{font-size:3.8px;fill:#333}.c{font-size:3.4px;fill:#111;text-anchor:middle}.c4{font-size:2.8px;fill:#111;text-anchor:middle}circle.d{fill:#111}rect.q{fill:#fff;stroke:#999;stroke-width:.25}</style>
+<rect width="210" height="297" fill="#fff"/>
+<text class="t" x="105" y="22">掛け算の糸かけ　釘 0〜19</text>
+<circle cx="105" cy="140" r="78" fill="none" stroke="#bbb" stroke-width=".3"/>
+<circle class="d" cx="105.0" cy="62.0" r="1.4"/><text class="n" x="105.0" y="56.3">0</text>
+<circle class="d" cx="80.9" cy="65.8" r="1.4"/><text class="n" x="78.7" y="60.4">1</text>
+<circle class="d" cx="59.2" cy="76.9" r="1.4"/><text class="n" x="55.0" y="72.5">2</text>
+<circle class="d" cx="41.9" cy="94.2" r="1.4"/><text class="n" x="36.2" y="91.3">3</text>
+<circle class="d" cx="30.8" cy="115.9" r="1.4"/><text class="n" x="24.1" y="115.0">4</text>
+<circle class="d" cx="27.0" cy="140.0" r="1.4"/><text class="n" x="20.0" y="141.3">5</text>
+<circle class="d" cx="30.8" cy="164.1" r="1.4"/><text class="n" x="24.1" y="167.6">6</text>
+<circle class="d" cx="41.9" cy="185.8" r="1.4"/><text class="n" x="36.2" y="191.3">7</text>
+<circle class="d" cx="59.2" cy="203.1" r="1.4"/><text class="n" x="55.0" y="210.1">8</text>
+<circle class="d" cx="80.9" cy="214.2" r="1.4"/><text class="n" x="78.7" y="222.2">9</text>
+<circle class="d" cx="105.0" cy="218.0" r="1.4"/><text class="n" x="105.0" y="226.3">10</text>
+<circle class="d" cx="129.1" cy="214.2" r="1.4"/><text class="n" x="131.3" y="222.2">11</text>
+<circle class="d" cx="150.8" cy="203.1" r="1.4"/><text class="n" x="155.0" y="210.1">12</text>
+<circle class="d" cx="168.1" cy="185.8" r="1.4"/><text class="n" x="173.8" y="191.3">13</text>
+<circle class="d" cx="179.2" cy="164.1" r="1.4"/><text class="n" x="185.9" y="167.6">14</text>
+<circle class="d" cx="183.0" cy="140.0" r="1.4"/><text class="n" x="190.0" y="141.3">15</text>
+<circle class="d" cx="179.2" cy="115.9" r="1.4"/><text class="n" x="185.9" y="115.0">16</text>
+<circle class="d" cx="168.1" cy="94.2" r="1.4"/><text class="n" x="173.8" y="91.3">17</text>
+<circle class="d" cx="150.8" cy="76.9" r="1.4"/><text class="n" x="155.0" y="72.5">18</text>
+<circle class="d" cx="129.1" cy="65.8" r="1.4"/><text class="n" x="131.3" y="60.4">19</text>
+<text class="s" x="15" y="258">釘 n から釘 2n へ線を引く（20 以上になったら 20 を引く）。0 → 0、1 → 2、2 → 4、…、10 → 0（20−20）、11 → 2、…</text>
+<text class="s" x="15" y="263.2">全部引くと、何が見える？ 3 倍（n → 3n）でも試す。</text>
+<text class="f" x="15" y="284">名前：＿＿＿＿＿＿＿＿　　k = ＿＿　　糸の本数 = ＿＿　　気づいたこと：</text>
+</svg>
