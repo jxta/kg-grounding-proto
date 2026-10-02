@@ -1,0 +1,96 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
+
+# %% [markdown]
+# # 枝分かれの木：同じきまりをくり返す
+#
+# 幹から 2 本に分かれ、その先がまた 2 本に分かれる。同じきまりをくり返すだけで、木になる。
+#
+# **問い：** n 段目の枝は何本？ 枝の長さを毎回同じ割合で短くすると、木は無限に伸びる？
+#
+# **手で：** 定規と分度器で描く。幹 8 cm。先端から左右に 30° ずつ、長さは 0.7 倍の枝を 2 本。これを 4 段くり返す。各段の枝の本数を数える。
+# %% [markdown]
+# > **AI と実験するときの約束**
+# >
+# > - 問い・手でやったこと・手の結果・予想は、きみが書く。AI は書き換えない（頼まれても、きみに書いてもらう）
+# > - AI は答えや定理を先に言わない。次の一手を一つ示す
+# > - AI が入れるセルは、コードなら 1 行目に `# [AI]`、文章なら先頭に（AI）と書く
+# > - 照合のセル（手と機械を照らすところ）と、最後の `report()` は消さない
+# > - AI の言うことは確かめる。機械が正しいとは限らないし、AI も間違える
+# > - JupyterLite でも AI と話せる：コードのセルで `ai("聞きたいこと")`（先に `ai_setup("sk-…")` でキー）。提案のコードは `ai_accept()` で下に入る（動かすのはきみ）
+# %%
+import sys; sys.path.insert(0, "."); sys.path.insert(0, "../experiments")
+import numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）
+from kg_tools import *
+import numpy as np, math
+
+# 手で見た結果（自分の結果に書き換える）
+hand_tips = [1, 2, 4, 8, 16]          # 幹から順に、各段の枝の本数（数えたところまで）
+hand_height = 17.5                    # 木の高さ（cm）。8 + 5.6 + 3.9 + 2.7 ＋ … を測った
+hand_guess = "本数は毎回 2 倍。高さはどこかで止まる？"
+DEPTH = 10                            # 機械で描く段数
+RATIO = 0.7                           # 長さの割合
+ANGLE = 30                            # 枝の角度（度）
+
+# %% [markdown]
+# ## 機械で
+
+# %%
+def tree(ax, x, y, length, angle, depth, ratio, spread, rng=None, lw=None):
+    """(x, y) から角度 angle（度、上が 90）に長さ length の枝。depth 段くり返す"""
+    if depth == 0:
+        return
+    lw = lw if lw is not None else max(0.3, 0.9 * depth)
+    x2 = x + length * math.cos(math.radians(angle)); y2 = y + length * math.sin(math.radians(angle))
+    ax.plot([x, x2], [y, y2], color="#111111", lw=lw, solid_capstyle="round")
+    jitter = rng.uniform(-8, 8, 2) if rng is not None else (0, 0)
+    tree(ax, x2, y2, length * ratio, angle + spread + jitter[0], depth - 1, ratio, spread, rng, lw * 0.75)
+    tree(ax, x2, y2, length * ratio, angle - spread + jitter[1], depth - 1, ratio, spread, rng, lw * 0.75)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 5.5))
+for ax, rng, t in zip(axes, [None, np.random.default_rng(1)], ["きまりどおり", "角度を少しゆらす"]):
+    tree(ax, 0, 0, 8, 90, DEPTH, RATIO, ANGLE, rng)
+    ax.set_aspect("equal"); ax.axis("off"); ax.set_title(f"{DEPTH} 段、長さ ×{RATIO}、角度 {ANGLE}°：{t}", fontsize=9.5, loc="left", color="#222222")
+plt.show()
+
+# %% [markdown]
+# ### 照合：各段の枝の本数と、木の高さ
+
+# %%
+machine_tips = [2 ** i for i in range(len(hand_tips))]
+print("手  ：", hand_tips); print("機械：", machine_tips, "（2 の n 乗）")
+print("一致" if hand_tips == machine_tips else "食い違い。どの段？")
+h = sum(8 * RATIO ** i * (1 if i == 0 else math.cos(math.radians(ANGLE))) for i in range(5))
+print(f"5 段の木の高さ（真上に伸びる分だけ）：機械 {h:.1f} cm ／ 手 {hand_height} cm")
+
+# %% [markdown]
+# ## 予想を試す
+#
+# 予想：「高さはどこかで止まる」。段数を増やしても、高さが増え続けるか、ある値に近づくかを表にする。
+
+# %%
+print(f"{'段数':>4} {'枝の本数（合計）':>14} {'高さ（cm）':>10}")
+for d in [1, 2, 3, 5, 8, 10, 15, 20, 30]:
+    total = 2 ** d - 1
+    height = 8 + sum(8 * RATIO ** i * math.cos(math.radians(ANGLE)) for i in range(1, d))
+    print(f"{d:>4} {total:>14,} {height:>10.2f}")
+print(f"→ 本数は爆発的に増えるが、高さは止まる。止まる先：8 + 8 × 0.7 × cos30° ÷ (1 − 0.7) = {8 + 8 * RATIO * math.cos(math.radians(ANGLE)) / (1 - RATIO):.2f} cm")
+
+# %% [markdown]
+# **確かめること**：「n 段目の本数 = 2 の n 乗」は、文字式で書くと 2ⁿ。10 段目は手で数えられる？（機械は 512 本と言う）
+#
+# ここから先の問い：RATIO を 0.9 にすると高さはどうなる？ 枝を 3 本に分けると本数は？（`tree` を書き換える）
+
+# %%
+report("a9_tree", f"{DEPTH} 段の木。n 段目の枝は 2ⁿ 本。高さは ×{RATIO} で止まる（{8 + 8 * RATIO * math.cos(math.radians(ANGLE)) / (1 - RATIO):.1f} cm）",
+       data={"depth": DEPTH, "ratio": RATIO, "angle": ANGLE, "tips": machine_tips}, hand={"tips": hand_tips, "height": hand_height, "guess": hand_guess},
+       params={"DEPTH": DEPTH, "RATIO": RATIO, "ANGLE": ANGLE}, notebook="a9_tree.ipynb")
