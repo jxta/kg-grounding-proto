@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+<style>text{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',sans-serif}.t{font-size:6.5px;fill:#111;text-anchor:middle}.n{font-size:3.6px;fill:#444;text-anchor:middle}.s{font-size:3.6px;fill:#333}.f{font-size:3.8px;fill:#333}.c{font-size:3.4px;fill:#111;text-anchor:middle}.g{font-size:4.2px;fill:#111;text-anchor:middle}.d{font-size:5px;fill:#111;text-anchor:middle;font-weight:bold}circle.d{fill:#111}rect.q{fill:#fff;stroke:#999;stroke-width:.25}line.l{stroke:#999;stroke-width:.3}line.a{stroke:#111;stroke-width:.5}line.k{stroke:#bbb;stroke-width:.25}</style>
+<rect width="210" height="297" fill="#fff"/>
+<text class="t" x="105" y="22">軸の糸かけ　縦の k と横の 13 − k を結ぶ</text>
+<line class="a" x1="30" y1="220" x2="180" y2="220"/>
+<line class="a" x1="30" y1="220" x2="30" y2="70"/>
+<circle class="d" cx="42" cy="220" r="1"/><text class="n" x="42" y="225">1</text>
+<circle class="d" cx="30" cy="208" r="1"/><text class="n" x="26" y="209.3">1</text>
+<circle class="d" cx="54" cy="220" r="1"/><text class="n" x="54" y="225">2</text>
+<circle class="d" cx="30" cy="196" r="1"/><text class="n" x="26" y="197.3">2</text>
+<circle class="d" cx="66" cy="220" r="1"/><text class="n" x="66" y="225">3</text>
+<circle class="d" cx="30" cy="184" r="1"/><text class="n" x="26" y="185.3">3</text>
+<circle class="d" cx="78" cy="220" r="1"/><text class="n" x="78" y="225">4</text>
+<circle class="d" cx="30" cy="172" r="1"/><text class="n" x="26" y="173.3">4</text>
+<circle class="d" cx="90" cy="220" r="1"/><text class="n" x="90" y="225">5</text>
+<circle class="d" cx="30" cy="160" r="1"/><text class="n" x="26" y="161.3">5</text>
+<circle class="d" cx="102" cy="220" r="1"/><text class="n" x="102" y="225">6</text>
+<circle class="d" cx="30" cy="148" r="1"/><text class="n" x="26" y="149.3">6</text>
+<circle class="d" cx="114" cy="220" r="1"/><text class="n" x="114" y="225">7</text>
+<circle class="d" cx="30" cy="136" r="1"/><text class="n" x="26" y="137.3">7</text>
+<circle class="d" cx="126" cy="220" r="1"/><text class="n" x="126" y="225">8</text>
+<circle class="d" cx="30" cy="124" r="1"/><text class="n" x="26" y="125.3">8</text>
+<circle class="d" cx="138" cy="220" r="1"/><text class="n" x="138" y="225">9</text>
+<circle class="d" cx="30" cy="112" r="1"/><text class="n" x="26" y="113.3">9</text>
+<circle class="d" cx="150" cy="220" r="1"/><text class="n" x="150" y="225">10</text>
+<circle class="d" cx="30" cy="100" r="1"/><text class="n" x="26" y="101.3">10</text>
+<circle class="d" cx="162" cy="220" r="1"/><text class="n" x="162" y="225">11</text>
+<circle class="d" cx="30" cy="88" r="1"/><text class="n" x="26" y="89.3">11</text>
+<circle class="d" cx="174" cy="220" r="1"/><text class="n" x="174" y="225">12</text>
+<circle class="d" cx="30" cy="76" r="1"/><text class="n" x="26" y="77.3">12</text>
+<text class="s" x="15" y="258">縦の 1 と横の 12、縦の 2 と横の 11、…、縦の 12 と横の 1 を定規で結ぶ（12 本）。直線だけなのに何が見える？</text>
+<text class="s" x="15" y="263.2">できたら、紙の裏や別の紙で、4 つの角に同じものを描いて「花」にする。</text>
+<text class="f" x="15" y="284">名前：＿＿＿＿＿＿＿＿　　気づいたこと：</text>
+</svg>

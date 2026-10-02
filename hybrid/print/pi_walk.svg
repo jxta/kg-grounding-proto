@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+<style>text{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',sans-serif}.t{font-size:6.5px;fill:#111;text-anchor:middle}.n{font-size:3.6px;fill:#444;text-anchor:middle}.s{font-size:3.6px;fill:#333}.f{font-size:3.8px;fill:#333}.c{font-size:3.4px;fill:#111;text-anchor:middle}.g{font-size:4.2px;fill:#111;text-anchor:middle}.d{font-size:5px;fill:#111;text-anchor:middle;font-weight:bold}circle.d{fill:#111}rect.q{fill:#fff;stroke:#999;stroke-width:.25}line.l{stroke:#999;stroke-width:.3}line.a{stroke:#111;stroke-width:.5}line.k{stroke:#bbb;stroke-width:.25}</style>
+<rect width="210" height="297" fill="#fff"/>
+<text class="t" x="105" y="22">π の散歩　数字で歩く</text>
+<defs><pattern id="g" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M5 0H0V5" fill="none" stroke="#bbb" stroke-width=".25"/></pattern></defs>
+<rect x="15" y="70" width="180" height="150" fill="url(#g)" stroke="#bbb" stroke-width=".25"/>
+<circle class="d" cx="105" cy="145" r="1.2"/><text class="n" x="105" y="150">出発</text>
+<text class="g" x="105" y="36">π = 3.14159265358979323846264338327</text>
+<text class="s" x="15" y="46">読む順：3 → 1 → 4 → 1 → 5 → 9 → 2 → 6 → 5 → 3 → …（小数点の前の 3 から数える）</text>
+<text class="s" x="15" y="52">0・1 → 上に 1 マス　　2・3 → 右に 1 マス　　4・5 → 下に 1 マス　　6・7 → 左に 1 マス　　8・9 → その場で一休み</text>
+<text class="s" x="15" y="58">数字ごとの回数（正の字）：0　　1　　2　　3　　4　　5　　6　　7　　8　　9</text>
+<text class="s" x="15" y="258">30 個の数字を順に読んで、出発点から歩く。線で道を描く。どこに着いた？ 同じ道を 2 回通った？</text>
+<text class="f" x="15" y="284">名前：＿＿＿＿＿＿＿＿　　気づいたこと：</text>
+</svg>
