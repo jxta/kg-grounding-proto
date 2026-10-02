@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+<style>text{font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',sans-serif}.t{font-size:6.5px;fill:#111;text-anchor:middle}.n{font-size:3.6px;fill:#444;text-anchor:middle}.s{font-size:3.6px;fill:#333}.f{font-size:3.8px;fill:#333}.c{font-size:3.4px;fill:#111;text-anchor:middle}.g{font-size:4.2px;fill:#111;text-anchor:middle}.d{font-size:5px;fill:#111;text-anchor:middle;font-weight:bold}.h{font-size:4.5px;fill:#111;text-anchor:middle}circle.d{fill:#111}rect.q{fill:#fff;stroke:#999;stroke-width:.25}line.l{stroke:#999;stroke-width:.3}</style>
+<rect width="210" height="297" fill="#fff"/>
+<text class="t" x="105" y="22">音の糸かけ　12 の音の円</text>
+<circle cx="105" cy="140" r="70" fill="none" stroke="#bbb" stroke-width=".3"/>
+<circle class="d" cx="105.0" cy="70.0" r="2"/><text class="h" x="105.0" y="59.6">ド</text>
+<circle class="d" cx="140.0" cy="79.4" r="2"/><text class="h" x="146.0" y="70.6">ド#</text>
+<circle class="d" cx="165.6" cy="105.0" r="2"/><text class="h" x="176.0" y="100.6">レ</text>
+<circle class="d" cx="175.0" cy="140.0" r="2"/><text class="h" x="187.0" y="141.6">レ#</text>
+<circle class="d" cx="165.6" cy="175.0" r="2"/><text class="h" x="176.0" y="182.6">ミ</text>
+<circle class="d" cx="140.0" cy="200.6" r="2"/><text class="h" x="146.0" y="212.6">ファ</text>
+<circle class="d" cx="105.0" cy="210.0" r="2"/><text class="h" x="105.0" y="223.6">ファ#</text>
+<circle class="d" cx="70.0" cy="200.6" r="2"/><text class="h" x="64.0" y="212.6">ソ</text>
+<circle class="d" cx="44.4" cy="175.0" r="2"/><text class="h" x="34.0" y="182.6">ソ#</text>
+<circle class="d" cx="35.0" cy="140.0" r="2"/><text class="h" x="23.0" y="141.6">ラ</text>
+<circle class="d" cx="44.4" cy="105.0" r="2"/><text class="h" x="34.0" y="100.6">ラ#</text>
+<circle class="d" cx="70.0" cy="79.4" r="2"/><text class="h" x="64.0" y="70.6">シ</text>
+<text class="s" x="15" y="258">ドから、k ずつ時計回りに進んで線を結ぶ（k = 7 なら ド → ソ → レ → …）。通った音を順に下に書く。</text>
+<text class="s" x="15" y="263.2">通った音：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿　　全部の音を通った？　糸は何本？</text>
+<text class="f" x="15" y="284">名前：＿＿＿＿＿＿＿＿　　k = ＿＿　　気づいたこと：</text>
+</svg>
