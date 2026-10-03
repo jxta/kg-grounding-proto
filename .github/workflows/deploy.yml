@@ -31,6 +31,9 @@ jobs:
       - name: Japanese font subset -> fonts/
         run: python tools/make_font_subset.py
 
+      - name: Excalidraw board -> hybrid/excalidraw/
+        run: python tools/make_excalidraw.py hybrid/excalidraw
+
       - name: Experiment and puzzle notebooks from percent scripts (*.py -> *.ipynb)
         run: |
           jupytext --to ipynb experiments/[0-9]*.py
