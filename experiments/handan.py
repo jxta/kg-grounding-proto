@@ -36,12 +36,16 @@ KOUHO = [
     ("matsu",    "黙って待つ"),
 ]
 
-# 問い返すときの問いの候補。これも人が先に書く。どれを出すかは特徴から同じ仕組みで選ぶ
+# 問い返すときの問いの候補（id、短い名、問いの文）。これも人が先に書く。
+# どれを出すかは、判定モデルがあれば Choice 1 本（SHITSUMON["toi"]）で選び、なければ特徴から規則で選ぶ
 TOI = [
-    ("hayasa", "まばらになるのは、どのくらいの速さ？ 10 ごとに数えてみると、数で言える。`kazoeru(100, 10)`"),
-    ("dokomade", "どこまで見た？ 見た範囲のことと、その先のことは、分けて書けそう？"),
-    ("nani", "何を見て、そう思った？ 絵のどこ？"),
+    ("hayasa",   "どのくらいの速さ",  "まばらになるのは、どのくらいの速さ？ 10 ごとに数えてみると、数で言える。`kazoeru(100, 10)`"),
+    ("kurabe",   "何と何を比べて",    "どのくらい減る、というのは、何と何を比べて？ どこからどこまで？ 10 ごとに数えると、数で比べられる。`kazoeru(100, 10)`"),
+    ("dokomade", "どこまで見た",      "どこまで見た？ 見た範囲のことと、その先のことは、分けて書けそう？"),
+    ("nani",     "何を見て",          "何を見て、そう思った？ 絵のどこ？"),
 ]
+TOI_BUN = {k: bun for k, _, bun in TOI}
+TOI_NA = {k: na for k, na, _ in TOI}
 
 HANNOU = {
     "tsugi": "もっと先まで描いてみよう。`ten(1000)`。点がひとつだけの数は、どうなる？",
@@ -55,6 +59,7 @@ PLACEHOLDER = "（ここに書く）"
 _SPARSE = ("まばら", "少な", "すくな", "減", "へる", "へって", "間が", "あいだが", "広が", "ひろが", "散", "ちら")
 _FOREVER = ("なくならない", "無くならない", "ずっと", "いつまでも", "無限", "必ず", "ぜったい", "絶対", "全部", "かならず")
 _DONTKNOW = ("わからない", "分からない", "わかんない", "わかりません", "分かりません")
+_RATIO = ("半分", "はんぶん", "倍", "割", "％", "%", "パーセント", "分の", "ぐっと", "急に", "きゅうに", "ゆっくり", "じょじょに", "徐々に", "ほとんど")
 
 
 def _clean(text):
@@ -73,6 +78,8 @@ def features(text):
         f.add("数えた")
     if len(t) < 8:
         f.add("短い")
+    if len(t) <= 4 and not any(w in t for w in _DONTKNOW):
+        f.add("ひとこと")                     # 「えっと」「まだ」：書きかけ
     if len(t) > 40:
         f.add("長い")
     if any(w in t for w in _SPARSE):
@@ -81,6 +88,8 @@ def features(text):
         f.add("その先")
     if any(w in t for w in _DONTKNOW):
         f.add("わからない")
+    if any(w in t for w in _RATIO):
+        f.add("割合")
     if "？" in t or "?" in t:
         f.add("問い")
     return f
@@ -91,6 +100,7 @@ WEIGHTS = {
     "空":          {"toikaesu": -1.0, "tsugi": -1.0, "chizu": -1.0, "matsu": 3.0},
     "数えた":      {"toikaesu": -1.0, "tsugi": -0.5, "chizu": 2.5, "matsu": 0.0},
     "短い":        {"toikaesu": 0.0,  "tsugi": 1.5,  "chizu": -0.5, "matsu": 0.0},
+    "ひとこと":    {"toikaesu": -0.5, "tsugi": -0.5, "chizu": -0.5, "matsu": 3.0},
     "長い":        {"toikaesu": 0.0,  "tsugi": -0.5, "chizu": 0.5, "matsu": 0.0},
     "まばら":      {"toikaesu": 1.5,  "tsugi": 0.0,  "chizu": 0.0, "matsu": 0.0},
     "その先":      {"toikaesu": 1.5,  "tsugi": 0.0,  "chizu": -0.5, "matsu": 0.0},
@@ -99,13 +109,14 @@ WEIGHTS = {
 }
 BIAS = {"toikaesu": 0.3, "tsugi": 0.0, "chizu": -0.5, "matsu": -1.0}
 
-# 問いの選び方（特徴 → 問いの候補ごとの重み）。モデル版でも規則版でも、特徴からこの表で選ぶ
+# 問いの選び方の規則版（特徴 → 問いの候補ごとの重み）。モデルに届かないときはこの表で選ぶ
 TOI_WEIGHTS = {
-    "まばら":  {"hayasa": 1.2, "dokomade": 0.0, "nani": 0.0},
-    "その先":  {"hayasa": 0.0, "dokomade": 1.0, "nani": 0.0},
-    "数えた":  {"hayasa": -1.0, "dokomade": 0.5, "nani": 0.0},
+    "まばら":  {"hayasa": 1.2,  "kurabe": 0.0,  "dokomade": 0.0, "nani": 0.0},
+    "割合":    {"hayasa": -1.0, "kurabe": 2.0,  "dokomade": 0.0, "nani": 0.0},
+    "その先":  {"hayasa": 0.0,  "kurabe": 0.0,  "dokomade": 1.0, "nani": 0.0},
+    "数えた":  {"hayasa": -1.0, "kurabe": -0.5, "dokomade": 0.5, "nani": 0.0},
 }
-TOI_BIAS = {"hayasa": 0.0, "dokomade": 0.0, "nani": 0.2}
+TOI_BIAS = {"hayasa": 0.0, "kurabe": 0.0, "dokomade": 0.0, "nani": 0.2}
 
 
 def _softmax(raw):
@@ -117,7 +128,7 @@ def _softmax(raw):
 
 def _linear(feats, candidates, weights, bias):
     """特徴の集合 → 候補ごとの確率（重みを足して softmax）"""
-    cands = [k for k, _ in candidates]
+    cands = [c[0] for c in candidates]
     raw = {c: bias.get(c, 0.0) + sum(weights[x].get(c, 0.0) for x in feats if x in weights) for c in cands}
     return _softmax(raw)
 
@@ -144,6 +155,24 @@ SHITSUMON = {
             "tsugi":    "次の実験を促す（「わからない」と書いてあるときは必ずこれ。観察がないときもこれ。もっと先まで描かせる）",
             "chizu":    "地図への記入を促す（数字が 2 つ以上書いてあるので、記録させる）",
             "matsu":    "黙って待つ（まだ書きかけ）",
+        },
+    },
+    "toi": {
+        "type": "choice",
+        "instructions": "\n".join([
+            "場面：中学生が、1 から N までの数の上に、その数を割り切る 2 以上の数の個数だけ点を打った絵（点がひとつだけの数は素数）を見て、"
+            "見えたことを自分の言葉で書いた。先生役は答えを教えず、根拠を数や範囲で言わせるための問いを一つだけ返す。",
+            "方針（上から順に見て、最初に当てはまったものを選ぶ。下の方針は見ない）：",
+            "1. 「半分」「倍」「ぐっと減る」「じょじょに」のように、どのくらい減るか・どんな速さかを言葉で言っている → kurabe",
+            "2. 「減る」「まばら」「少なくなる」とだけ言っていて、どのくらいかを言っていない → hayasa",
+            "3. 「なくならない」「無限」「ずっと」のように、見た範囲の先のことを言っている → dokomade",
+            "4. それ以外（何を見てそう思ったのかが書かれていない、絵と合わない） → nani",
+        ]),
+        "criteria": {
+            "hayasa":   "どのくらいの速さで減るのかを、10 ごとに数えて数で言わせる",
+            "kurabe":   "何と何を比べて「半分」などと言ったのかを聞き、範囲を数えて比べさせる",
+            "dokomade": "どこまで見たかを聞き、見た範囲のことと、その先の主張を分けさせる",
+            "nani":     "何を見てそう思ったのかを聞く",
         },
     },
     "kazoeta":   {"type": "noul", "instructions": "数えた結果（個数や見た範囲）が数字で具体的に書いてあるか",
@@ -294,9 +323,14 @@ def _score_model(text):
     p = {k: v / s for k, v in p.items()}
     nouls = {NOUL_NAMES[k]: float(ans[k]["noul"]) for k in NOUL_NAMES if k in ans}
     feats = {name for name, v in nouls.items() if v >= 0.5}
+    toi = None
+    if "toi" in ans and isinstance(ans["toi"].get("probabilities"), dict):
+        tp = {k: float(ans["toi"]["probabilities"].get(k, 0.0)) for k, _, _ in TOI}
+        ts = sum(tp.values()) or 1.0
+        toi = {k: v / ts for k, v in tp.items()}
     meta = {"source": "model", "model": res.get("model", MODEL["model"]), "url": MODEL["base_url"],
             "ms": int((time.time() - t0) * 1000), "nouls": {k: round(v, 2) for k, v in nouls.items()},
-            "confidence": ans["hannou"].get("confidence")}
+            "confidence": ans["hannou"].get("confidence"), "toi": toi}
     return p, feats, meta
 
 
@@ -321,21 +355,43 @@ def score(text):
 
 
 def erabu(text):
-    """文 → (選ばれた候補の id, 候補ごとの確率, 反応の文, 反応した特徴)"""
+    """文 → (選ばれた候補の id, 候補ごとの確率, 反応の文, 反応した特徴, 問いの候補ごとの確率 or None)
+    問いは、モデルが答えていればモデルの Choice（SHITSUMON["toi"]）、なければ特徴からの規則で選ぶ"""
     p, f = score(text)
     best = max(p, key=p.get)
+    q = None
     if best == "toikaesu":
-        q = _linear(f, TOI, TOI_WEIGHTS, TOI_BIAS)
-        line = dict(TOI)[max(q, key=q.get)]
+        meta = MODEL["last"] or {}
+        q = meta.get("toi") if meta.get("source") == "model" and meta.get("toi") else _linear(f, TOI, TOI_WEIGHTS, TOI_BIAS)
+        line = TOI_BUN[max(q, key=q.get)]
     else:
         line = HANNOU[best]
-    return best, p, line, f
+    return best, p, line, f, q
 
 
-def kiku(text, show=True):
-    """生徒が書いた文を判定器に聞く。候補ごとの数と、選ばれた反応だけを出す"""
-    best, p, line, f = erabu(text)
+KIROKU_FILE = "handan_log.jsonl"   # kiku() の入力と判定をためる（あとで先生が正解を付け、微調整の学習データにする）
+
+
+def _kiroku(text, best, p, q, meta):
+    try:
+        row = {"toki": time.strftime("%Y-%m-%d %H:%M:%S"), "bun": _clean(text), "hantei": meta.get("source"),
+               "model": meta.get("model"), "kouho": {k: round(v, 3) for k, v in p.items()}, "erabareta": best,
+               "toi": ({k: round(v, 3) for k, v in q.items()} if q else None),
+               "toi_erabareta": (max(q, key=q.get) if q else None), "nouls": meta.get("nouls"),
+               "seikai": None, "seikai_toi": None}      # ← 先生があとで埋める欄
+        with open(KIROKU_FILE, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def kiku(text, show=True, log=True):
+    """生徒が書いた文を判定器に聞く。候補ごとの数と、選ばれた反応だけを出す。
+    log=True なら、入力と判定を handan_log.jsonl に一行ためる（手元だけ。どこにも送らない）"""
+    best, p, line, f, q = erabu(text)
     meta = MODEL["last"] or {}
+    if log and _clean(text):
+        _kiroku(text, best, p, q, meta)
     if show:
         names = dict(KOUHO)
         t = _clean(text)
@@ -358,7 +414,72 @@ def kiku(text, show=True):
             bar = "█" * int(round(p[k] * 20))
             mark = "→" if k == best else " "
             print(f"{mark} {_pad(name, 20)}{p[k]:6.2f}  {bar}")
+        if q:
+            qbest = max(q, key=q.get)
+            print()
+            print("  " + _pad("問いの候補", 20) + "  数" + ("" if meta.get("toi") else "（規則で選択）"))
+            for k, na, _ in TOI:
+                bar = "█" * int(round(q[k] * 20))
+                mark = "→" if k == qbest else " "
+                print(f"{mark} {_pad(na, 20)}{q[k]:6.2f}  {bar}")
         print()
         print(f"{names[best]}：{line}")
     return {"erabareta": best, "kakuritsu": {k: round(v, 3) for k, v in p.items()}, "hannou": line,
-            "tokuchou": sorted(f), "hantei": meta}
+            "tokuchou": sorted(f), "toi": ({k: round(v, 3) for k, v in q.items()} if q else None), "hantei": meta}
+
+
+# ---------- 文面を直すときの道具 ----------
+# (文, 期待する反応, 期待する問い or None)。反応や問いの文面を直したら shiken() で一度に確かめる。
+# 先生の判断で増やしてよい。期待は「こう返してほしい」であって正解ではない
+JIREI = [
+    ("まばらになる。でも、なくならない",                                   "toikaesu", "hayasa"),
+    ("まだらになってじょじょにひんどが半分くらいになります。",             "toikaesu", "kurabe"),
+    ("点がひとつの数は、だんだん少なくなる気がする",                       "toikaesu", "hayasa"),
+    ("素数は無限にある",                                                   "toikaesu", "dokomade"),
+    ("右に行くほど、点がひとつの数が減っている。でも 90 のあたりにもある", "toikaesu", "hayasa"),
+    ("2 と 3 だけが隣どうし。あとは離れている",                           "toikaesu", "dokomade"),
+    ("なぜ 1 には点がないの？",                                            "toikaesu", "nani"),
+    ("全部の数に点がある",                                                 "toikaesu", "nani"),
+    ("10 ごとに 4, 4, 2, 2, 3, 2, 2, 3, 2, 1 個。だんだん減る",             "chizu", None),
+    ("1 から 100 まで見た。点がひとつだけの数は 25 個あった",               "chizu", None),
+    ("点がひとつだけの数は、2, 3, 5, 7, 11, 13 …",                         "chizu", None),
+    ("10 ごとに数えたら、4 個、4 個、2 個、2 個、3 個。だんだん減るけど、ゼロにはならないと思う", "chizu", None),
+    ("わからない",                                                         "tsugi", None),
+    ("えっと",                                                             "matsu", None),
+    ("まだ",                                                               "matsu", None),
+]
+
+
+def shiken(jirei=None, show=True):
+    """事例をまとめて判定器に通し、期待と合うかを表にする。文面（SHITSUMON の指示文・候補の説明、TOI の問い）を
+    直したら、これで一度に確かめる。モデルがあればモデル、なければ規則版で判定する（表の見出しに出る）。
+    戻り値：(反応が合った数, 問いが合った数, 問いを比べた数, 行のリスト)"""
+    jirei = jirei or JIREI
+    names = dict(KOUHO)
+    rows, hit, hit_q, n_q = [], 0, 0, 0
+    for case in jirei:
+        bun, want, want_q = (list(case) + [None, None])[:3]
+        best, p, line, f, q = erabu(bun)
+        meta = MODEL["last"] or {}
+        ok = best == want
+        hit += ok
+        qbest = max(q, key=q.get) if q else None
+        ok_q = None
+        if want_q and q:
+            n_q += 1
+            ok_q = qbest == want_q
+            hit_q += ok_q
+        rows.append({"bun": bun, "want": want, "got": best, "ok": ok, "p": p, "want_q": want_q, "got_q": qbest, "ok_q": ok_q,
+                     "source": meta.get("source"), "ms": meta.get("ms")})
+    if show:
+        src = (MODEL["last"] or {}).get("source")
+        print(f"判定：{'モデル ' + str(MODEL['model']) if src == 'model' else '規則版'}　{len(jirei)} 文")
+        print("  " + _pad("文", 30) + _pad("期待", 10) + _pad("判定", 10) + "   " + _pad("期待の問い", 10) + _pad("判定の問い", 10) + "  候補ごとの数")
+        for r in rows:
+            mark = "○" if r["ok"] else "×"
+            mq = "" if r["ok_q"] is None else ("○" if r["ok_q"] else "×")
+            ps = " ".join(f"{names[k][:2]}{r['p'][k]:.2f}" for k, _ in KOUHO)
+            print(f"{mark} " + _pad(r["bun"][:14], 30) + _pad(r["want"], 10) + _pad(r["got"], 10) + f" {mq} " +
+                  _pad(r["want_q"] or "-", 10) + _pad(r["got_q"] or "-", 10) + "  " + ps)
+        print(f"反応 {hit}/{len(jirei)}" + (f"　問い {hit_q}/{n_q}" if n_q else ""))
+    return hit, hit_q, n_q, rows
