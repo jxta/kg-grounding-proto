@@ -1275,3 +1275,65 @@ def report(exp, summary, data=None, hand=None, params=None, notebook=None):
     else:
         print(f"→ evidence_{exp}.json に書きました（地図アプリの「記録」から読み込めます）")
     return msg
+
+
+# ---------- てん（実験10：点がひとつだけの数） ----------
+# n の上に、n を割り切る 2 以上の数の個数だけ点を打つ。説明は書かない。見た人が「何が見える？」から始める
+TEN = {"N": None, "block": None, "counts": None}   # report() に入れるため、最後に描いた条件を覚えておく
+
+def _ten_counts(N):
+    """n = 1〜N それぞれについて、n を割り切る 2 以上の数の個数（篩と同じ要領で一度に数える）"""
+    ks = [0] * (N + 1)
+    for d in range(2, N + 1):
+        for m in range(d, N + 1, d):
+            ks[m] += 1
+    return ks[1:]
+
+def ten(N=30, save=None):
+    """1〜N の上に点を打つ。N が 120 までは点、それより大きいと細い棒（点がひとつだけの数は黒い線）"""
+    ks = _ten_counts(N)
+    TEN["N"] = N
+    if N <= 120:
+        fig, ax = plt.subplots(figsize=(min(12, 0.3 * N + 1.5), 0.19 * max(ks) + 1.2))
+        xs = [n for n in range(1, N + 1) for _ in range(ks[n - 1])]
+        ys = [j + 1 for n in range(1, N + 1) for j in range(ks[n - 1])]
+        ax.scatter(xs, ys, s=max(6, 2400 / N), color=_INK, linewidths=0)
+        ax.set_xticks(range(1, N + 1) if N <= 40 else range(10, N + 1, 10))
+        ax.set_yticks([])
+        ax.set_ylim(0.3, max(ks) + 0.8)
+        ax.spines["left"].set_visible(False)
+    else:
+        # 数が多いときは点を打てないので、点の数を薄い棒に、点がひとつだけの数を黒い線にする
+        fig, ax = plt.subplots(figsize=(12, 2.6))
+        ax.bar(range(1, N + 1), ks, width=1.0, color=_LIGHT, linewidth=0)
+        ones = [n for n in range(1, N + 1) if ks[n - 1] == 1]
+        ax.vlines(ones, 0, max(ks), color=_INK, linewidth=0.9)
+        ax.set_yticks([])
+        ax.set_ylim(0, max(ks))
+        ax.spines["left"].set_visible(False)
+    ax.set_xlim(0.3, N + 0.7)
+    ax.tick_params(axis="x", labelsize=8)
+    if save:
+        _save(fig, save)
+    plt.show()
+
+def kazoeru(N=100, block=10, save=None):
+    """点がひとつだけの数を、block ごとに数える。表と棒グラフ"""
+    ks = _ten_counts(N)
+    counts = [sum(1 for n in range(a, min(a + block, N + 1)) if ks[n - 1] == 1) for a in range(1, N + 1, block)]
+    TEN.update({"N": N, "block": block, "counts": counts})
+    print(f"{block} ごとに、点がひとつだけの数は何個？（1〜{N}）")
+    for i, c in enumerate(counts):
+        a = 1 + i * block
+        print(f"  {_pad(f'{a}〜{min(a + block - 1, N)}', 12)}{c:3d}  {'●' * c}")
+    print(f"  合計 {sum(counts)} 個")
+    fig, ax = plt.subplots(figsize=(min(12, 0.5 * len(counts) + 1.5), 2.4))
+    ax.bar(range(len(counts)), counts, color=_INK, width=0.7)
+    ax.set_xticks(range(len(counts)))
+    ax.set_xticklabels([str(1 + i * block) for i in range(len(counts))], fontsize=8, rotation=0 if len(counts) <= 12 else 90)
+    ax.set_xlabel(f"{block} ごと（左の数から）", fontsize=9)
+    ax.set_ylabel("個", fontsize=9)
+    if save:
+        _save(fig, save)
+    plt.show()
+    return counts
