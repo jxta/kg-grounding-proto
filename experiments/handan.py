@@ -124,31 +124,47 @@ def _linear(feats, candidates, weights, bias):
 
 # ---------- 判定モデル（kev / Jev）----------
 # 一度の呼び出しで投げる質問。id は模型には見えない。instructions と criteria が模型の読むすべて
+# 文面は 2026-10-26 に手元の kev-4b（MLX）で、14 の試し文に対して合わせた。方針を「上から順に当てはめる」形で書くと
+# 判定が安定し、Noul は yes／no の両側を書くと、書いていない文で 0.5 付近にぶれなくなる。
 SHITSUMON = {
     "hannou": {
         "type": "choice",
-        "instructions": ("中学生が、1 から N までの数の上に、その数を割り切る 2 以上の数の個数だけ点を打った絵を見て、"
-                         "見えたことを自分の言葉で書いた文です（点がひとつだけの数は素数）。"
-                         "先生役として、この文にいま返す反応として最もよいものを選んでください。答えや教科書の言葉は先に教えません。"),
+        "instructions": "\n".join([
+            "場面：中学生が、1 から N までの数の上に、その数を割り切る 2 以上の数の個数だけ点を打った絵（点がひとつだけの数は素数）を見て、"
+            "見えたことを自分の言葉で書いた。先生役は答えを教えず、反応を一つだけ返す。",
+            "方針（上から順に見て、最初に当てはまったものを選ぶ。下の方針は見ない）：",
+            "1. 文が空、または「えっと」「まだ」のようなひとことだけで、まだ書きかけ → matsu",
+            "2. 「わからない」「分からない」と書いてある → tsugi",
+            "3. 数字が 2 つ以上書いてある（数えた個数、10 ごとの個数、見た範囲など）。「減る」「まばら」などの感想が一緒に書いてあっても、数字があれば chizu → chizu",
+            "4. 数字がなく、観察や主張（減る、まばら、なくならない、無限、など）だけが書いてある → toikaesu",
+            "5. 観察がまだ何も書かれていない → tsugi",
+        ]),
         "criteria": {
-            "toikaesu": "問い返す。観察や主張は書いてあるが、根拠（どこまで見たか、どのくらいの速さか、何を見てそう思ったか）がまだ言葉になっていない",
-            "tsugi":    "次の実験を促す。短い、分からないと言っている、まだほとんど見ていない、具体的な観察がない",
-            "chizu":    "地図への記入を促す。見た範囲や数えた結果が具体的に書けていて、『たしかめた』として記録できる",
-            "matsu":    "黙って待つ。まだ書きかけで、考えている途中",
+            "toikaesu": "問い返す（観察や主張が書いてあるときだけ。「わからない」と書いてある文には使わない）",
+            "tsugi":    "次の実験を促す（「わからない」と書いてあるときは必ずこれ。観察がないときもこれ。もっと先まで描かせる）",
+            "chizu":    "地図への記入を促す（数字が 2 つ以上書いてあるので、記録させる）",
+            "matsu":    "黙って待つ（まだ書きかけ）",
         },
     },
-    "kazoeta":   {"type": "noul", "instructions": "数えた結果（個数や範囲の数字）が具体的に書いてある"},
-    "mabara":    {"type": "noul", "instructions": "点がひとつだけの数が、先に行くほど少なくなる・まばらになる、ということに触れている"},
-    "sonosaki":  {"type": "noul", "instructions": "見た範囲を超えて、ずっと続く・なくならない・無限にある、など先のことまで主張している"},
-    "wakaranai": {"type": "noul", "instructions": "分からない、と言っている"},
+    "kazoeta":   {"type": "noul", "instructions": "数えた結果（個数や見た範囲）が数字で具体的に書いてあるか",
+                  "criteria": {"true": "数字で具体的に書いてある", "false": "数字は書いていない、または 1 つの数だけ"}},
+    "mabara":    {"type": "noul", "instructions": "点がひとつだけの数が先に行くほど少なくなる・まばらになる・減る、と言っているか",
+                  "criteria": {"true": "言っている", "false": "言っていない"}},
+    "sonosaki":  {"type": "noul", "instructions": "見た範囲を超えて、ずっと続く・なくならない・無限にある、と先のことまで主張しているか",
+                  "criteria": {"true": "主張している", "false": "していない"}},
+    "wakaranai": {"type": "noul", "instructions": "「わからない」「分からない」と書いているか",
+                  "criteria": {"true": "書いている", "false": "書いていない"}},
 }
+# 探り（つながっているか）に使う、いちばん小さい質問。GET /v1/models ではなく POST にする理由：JupyterLite の
+# service worker は GET を自分で取りに行き、service worker はローカルネットワークの許可を聞けない（Chrome）。POST は素通し
+PING = {"state": "ping", "questions": {"ok": {"type": "noul", "instructions": "文が「ping」である"}}}
 NOUL_NAMES = {"kazoeta": "数えた", "mabara": "まばら", "sonosaki": "その先", "wakaranai": "わからない"}
 
-MODEL = {"base_url": None, "key": None, "model": "kev-latest", "timeout": 30, "probed": False, "last": None,
-         "auto": True, "tries": 0, "probe_error": None}
+MODEL = {"base_url": None, "key": None, "model": "kev-latest", "timeout": 90, "probed": False, "last": None,
+         "auto": True, "tries": 0, "probe_error": None, "probe_ms": None}
 DEFAULT_URL = "http://127.0.0.1:8009"
 PROBE_TRIES = 3          # 自動で探る回数（届かないときは接続拒否で即返るので、繰り返しても待ちは出ない）
-PROBE_TIMEOUT = 20       # ブラウザが「ローカルネットワークへのアクセス」の許可を聞いている間、待てるだけ待つ
+PROBE_TIMEOUT = 90       # 起動直後の kev は最初の一回に 30 秒ほどかかる（Metal の暖機）。許可を聞かれている間も待つ
 
 
 def _http(method, url, body=None, key=None, timeout=30):
@@ -199,10 +215,13 @@ def setup(base_url=DEFAULT_URL, key=None, model="kev-latest", quiet=False, _auto
             print("判定モデルは使いません（規則版で動きます）")
         return False
     try:
-        info = _http("GET", MODEL["base_url"] + "/v1/models", key=key, timeout=PROBE_TIMEOUT)
-        names = [m.get("name") for m in info.get("data", info.get("models", []))] if isinstance(info, dict) else []
+        t0 = time.time()
+        res = _http("POST", MODEL["base_url"] + "/v1/systemone", dict(PING, model=model), key=key, timeout=PROBE_TIMEOUT)
+        if not isinstance(res, dict) or "answers" not in res:
+            raise RuntimeError("返事の形が違う：" + str(res)[:80])
+        MODEL["probe_ms"] = int((time.time() - t0) * 1000)
         if not quiet:
-            print(f"判定モデルにつながりました：{MODEL['base_url']}" + (f"（{', '.join(n for n in names if n)}）" if names else ""))
+            print(f"判定モデルにつながりました：{MODEL['base_url']}（{res.get('model', model)}、{MODEL['probe_ms']} ms）")
         return True
     except Exception as e:
         if not quiet:
@@ -222,22 +241,25 @@ def _probe():
     setup(DEFAULT_URL, quiet=True, _auto=True)
 
 
-def tsunagu(base_url=DEFAULT_URL):
-    """ブラウザ（JupyterLite）で、ページの側から判定モデルにつなぐ。
+def tsunagu(base_url=DEFAULT_URL, model=None):
+    """ブラウザ（JupyterLite）で、ページの側から判定モデルにつなぐ（暖機も兼ねる）。
     Chrome 142 以降は、公開サイトから 127.0.0.1 へ初めてつなぐとき「ローカルネットワーク上のデバイス…」の許可を
     聞いてくる。ノートの計算はワーカーの中で動いていて、そこからは許可を聞けないことがあるので、ここで一度
     ページから聞く。許可はサイト（jxta.github.io）に対して記憶されるので、次からは聞かれない。
+    起動直後の kev は最初の一回に 30 秒ほどかかる。ここで一度通しておけば、kiku() は 1〜3 秒で返る。
     手元の Python（JupyterLab）では setup() と同じ"""
     url = (base_url or DEFAULT_URL).rstrip("/")
+    model = model or MODEL["model"]
     MODEL.update(base_url=None, probed=False, auto=True, tries=0, probe_error=None)
     if sys.platform != "emscripten":
-        return setup(url, _auto=True)
+        return setup(url, model=model, _auto=True)
     from IPython.display import display, HTML
     import uuid
     uid = "tsunagu-" + uuid.uuid4().hex[:8]
+    body = json.dumps(dict(PING, model=model), ensure_ascii=False)
     display(HTML(f"""
 <div id="{uid}" style="font-family:sans-serif;font-size:0.95em;line-height:1.6">
-  <span class="msg">つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。</span>
+  <span class="msg">つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。起動直後は 30 秒ほどかかる。</span>
   <button style="margin-left:0.6em">もう一度つなぐ</button>
 </div>
 <script>
@@ -245,10 +267,11 @@ def tsunagu(base_url=DEFAULT_URL):
   var box = document.getElementById("{uid}"); if (!box) return;
   var msg = box.querySelector(".msg"), btn = box.querySelector("button");
   function go(){{
-    msg.textContent = "つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。";
-    fetch("{url}/v1/models", {{cache: "no-store"}}).then(function(r){{ return r.json(); }}).then(function(j){{
-      var names = ((j && (j.models || j.data)) || []).map(function(m){{ return m.name; }}).filter(Boolean).join("、");
-      msg.textContent = "つながりました：{url}" + (names ? "（" + names + "）" : "") + "　この後の kiku() はこのモデルに聞きます。";
+    msg.textContent = "つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。起動直後は 30 秒ほどかかる。";
+    var t0 = Date.now();
+    fetch("{url}/v1/systemone", {{method: "POST", headers: {{"content-type": "application/json"}}, body: {json.dumps(body, ensure_ascii=False)}}})
+    .then(function(r){{ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }}).then(function(j){{
+      msg.textContent = "つながりました：{url}（" + (j.model || "{model}") + "、" + (Date.now() - t0) + " ms）　この後の kiku() はこのモデルに聞きます。";
     }}).catch(function(e){{
       msg.textContent = "つながりません（" + e + "）。kev が動いているか（ターミナルで curl localhost:8009/v1/models）、"
         + "このサイトのローカルネットワークへのアクセスを「ブロック」していないか（アドレス欄左のアイコン → サイトの設定）を見て、もう一度。";
