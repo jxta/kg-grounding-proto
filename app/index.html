@@ -201,6 +201,7 @@ const UNIT = {
     {id: "exp07",  file: "07_euclid.ipynb",         title: "実験7　素数は無限にある",            min: 8,  nodes: ["infinite_primes", "factorization"], advanced: true, desc: "2×3×…×p + 1 の素因数を見る。証明の筋を追う"},
     {id: "exp08",  file: "08_prime_race.ipynb",     title: "実験8　素数のレース",                min: 5,  nodes: ["prime_race", "prime"], advanced: true, desc: "4 で割った余りで数くらべ。26861 で逆転"},
     {id: "exp09",  file: "09_gcd_lcm.ipynb",        title: "実験9　最大公約数・最小公倍数",      min: 8,  nodes: ["gcd_lcm", "factorization", "uniqueness"], desc: "分解を並べて min / max の指数をとる。2〜200 で確認"},
+    {id: "exp10",  file: "10_ten.ipynb",            title: "実験10　てん（点がひとつだけの数）",   min: 5,  nodes: ["prime", "infinite_primes", "prime_race"], desc: "数の上に点を打つ。点がひとつだけの数は、先に行くとどうなる？ 見えたことを自分の言葉で書くと、用意した反応のどれを出すかを数で決める"},
     {id: "scratch", file: "00_scratch.ipynb",       title: "自由実験　自分で試す",               min: 10, nodes: [], desc: "AI と相談して決めた実験を自分で書く"},
   ],
 };
@@ -501,9 +502,15 @@ function receiveEvidence(msg) {
   aiSay(msg.exp === "scratch" ? "自由実験の結果が届きました。何を試して、何が見えた？" : `実験の結果が届きました。まず「何を見た？ どこまで確かめた？」を一文で。それが「わけ」になります。\n『たしかめた』は見た範囲のこと、『説明できる』は理由が言えること。どちらにする？`);
   showTab("ai"); toast("実験の結果が届きました");
 }
+// カードの中身を書き換えたら、chat の記録にも戻しておく（次の renderChat で元の入力欄に戻らないように）
+function syncCard(card) {
+  const m = card.closest(".msg"); if (!m) return;
+  const i = Array.from(m.parentNode.children).indexOf(m);
+  if (i >= 0 && chat[i]) chat[i].html = m.querySelector(".bubble").innerHTML;
+}
 function onCardAction(b) {
   const card = b.closest(".card"), act = b.dataset.act;
-  if (act === "dismiss") { card.innerHTML = '<div class="muted">今は変えませんでした（記録には残っています）</div>'; return; }
+  if (act === "dismiss") { card.innerHTML = '<div class="muted">今は変えませんでした（記録には残っています）</div>'; syncCard(card); return; }
   if (act === "apply-evidence") {
     const nodes = Array.from(card.querySelectorAll(".ev-node:checked")).map(x => x.value);
     const lv = Number((card.querySelector("input[type=radio]:checked") || {value: 2}).value), why = card.querySelector(".ev-why").value.trim();
@@ -512,7 +519,7 @@ function onCardAction(b) {
     const exp = card.dataset.exp, lines = [];
     for (const n of nodes) { const cur = map.nodes[n].level; const to = Math.max(cur, lv); const old = mark(map, n, to, why, [exp], null); lines.push(`${to > old ? "↑" : "＝"} ${nameOf(n)}：${LEVELS[old]} → ${LEVELS[to]}｜根拠：${exp}`); }
     saveState(); drawMain(); if (ui.selected) renderNodePanel();
-    card.innerHTML = `<div>${lines.map(esc).join("<br>")}</div>`;
+    card.innerHTML = `<div>${lines.map(esc).join("<br>")}</div>`; syncCard(card);
     aiSay(followUpQuestion(nodes[0], Math.max(map.nodes[nodes[0]].level, 1)));
     return;
   }
@@ -520,12 +527,12 @@ function onCardAction(b) {
     const n = card.dataset.node, lv = Number(card.dataset.level), why = card.querySelector(".p-why").value.trim();
     if (lv >= 2 && !why) { toast("「わけ」を自分の言葉で"); return; }
     const old = mark(map, n, lv, why, [], null); saveState(); drawMain(); if (ui.selected) renderNodePanel();
-    card.innerHTML = `<div>${esc(`${lv > old ? "↑" : lv < old ? "↓" : "＝"} ${nameOf(n)}：${LEVELS[old]} → ${LEVELS[lv]}`)}</div>`; return;
+    card.innerHTML = `<div>${esc(`${lv > old ? "↑" : lv < old ? "↓" : "＝"} ${nameOf(n)}：${LEVELS[old]} → ${LEVELS[lv]}`)}</div>`; syncCard(card); return;
   }
   if (act === "apply-link") {
     const [a, c] = card.dataset.edge.split("|"), why = card.querySelector(".p-why").value.trim();
     link(map, a, c, why); saveState(); drawMain(); if (ui.selected) renderNodePanel();
-    card.innerHTML = `<div>${esc(`＋ 道：${nameOf(a)} → ${nameOf(c)}${why ? "（" + why + "）" : ""}`)}</div>`; return;
+    card.innerHTML = `<div>${esc(`＋ 道：${nameOf(a)} → ${nameOf(c)}${why ? "（" + why + "）" : ""}`)}</div>`; syncCard(card); return;
   }
   if (act === "open-exp") { const e = UNIT.experiments.find(x => x.id === card.dataset.exp); if (e) window.open(expUrl(e), "_blank"); return; }
 }

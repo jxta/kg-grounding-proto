@@ -85,7 +85,7 @@ jobs:
           mkdir -p _lite/fonts _lite/experiments _lite/puzzles
           cp kg_prime_factorization.ipynb _lite/
           cp fonts/* _lite/fonts/
-          cp experiments/[0-9]*.ipynb experiments/kg_tools.py _lite/experiments/
+          cp experiments/[0-9]*.ipynb experiments/kg_tools.py experiments/handan.py _lite/experiments/
           cp puzzles/*.ipynb experiments/kg_tools.py _lite/puzzles/
           jupyter lite build --contents _lite --output-dir dist
 
