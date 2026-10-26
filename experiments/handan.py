@@ -8,7 +8,9 @@
 判定の中身は二つある。
   - 判定モデル：手元の Mac で動かした kev（TypeSafe の Jev と同じ /v1/systemone API を話す、公開重みの判定モデル。
     https://github.com/jaredpalmer/kev ）に、Choice 1 本（4 候補）と Noul 4 本（文の特徴）を一度に投げる。
-    `kiku()` は最初に http://127.0.0.1:8009 を探し、動いていればそれを使う。別の場所や Jev なら `setup()` で指定する
+    `kiku()` は最初に http://127.0.0.1:8009 を探し、動いていればそれを使う。別の場所や Jev なら `setup()` で指定する。
+    JupyterLite（公開サイト）から 127.0.0.1 へつなぐ初回だけ、Chrome が「ローカルネットワークへの接続」の許可を聞く。
+    聞かれずに規則版へ落ちるときは `tsunagu()` を一度（ページの側から許可を取る）
   - 規則版：文の特徴（数が書いてあるか、まばら・なくならない・わからない などの言葉、長さ）に重みをつけて足す、
     いちばん小さい形の判定器。モデルに届かないときはこちらで動く。表示は同じ
 候補と反応文は共通。モデルを替えるときも `score()` より下は触らなくてよい。
@@ -142,8 +144,11 @@ SHITSUMON = {
 }
 NOUL_NAMES = {"kazoeta": "数えた", "mabara": "まばら", "sonosaki": "その先", "wakaranai": "わからない"}
 
-MODEL = {"base_url": None, "key": None, "model": "kev-latest", "timeout": 30, "probed": False, "last": None}
+MODEL = {"base_url": None, "key": None, "model": "kev-latest", "timeout": 30, "probed": False, "last": None,
+         "auto": True, "tries": 0, "probe_error": None}
 DEFAULT_URL = "http://127.0.0.1:8009"
+PROBE_TRIES = 3          # 自動で探る回数（届かないときは接続拒否で即返るので、繰り返しても待ちは出ない）
+PROBE_TIMEOUT = 20       # ブラウザが「ローカルネットワークへのアクセス」の許可を聞いている間、待てるだけ待つ
 
 
 def _http(method, url, body=None, key=None, timeout=30):
@@ -162,8 +167,13 @@ def _http(method, url, body=None, key=None, timeout=30):
             pass
         for k, v in headers.items():
             xhr.setRequestHeader(k, v)
-        xhr.send(data)
+        try:
+            xhr.send(data)
+        except Exception as e:                 # 同期 XHR は、つながらない／時間切れだと send() が例外を投げる
+            raise ConnectionError("つながらない（" + str(e).split("\n")[0][:60] + "）") from None
         status, text = int(xhr.status), str(xhr.responseText)
+        if status == 0:                        # 届かない・ブラウザが止めた（CORS、ローカルネットワークの許可、混在コンテンツ）は全部これ
+            raise ConnectionError("つながらない（status 0）")
     else:
         import urllib.request, urllib.error
         req = urllib.request.Request(url, data=data.encode("utf-8") if data else None, headers=headers, method=method)
@@ -172,21 +182,24 @@ def _http(method, url, body=None, key=None, timeout=30):
                 status, text = r.status, r.read().decode("utf-8")
         except urllib.error.HTTPError as e:
             status, text = e.code, e.read().decode("utf-8", "replace")
+        except (urllib.error.URLError, OSError) as e:
+            raise ConnectionError(f"つながらない（{getattr(e, 'reason', e)}）") from None
     if status != 200:
         raise RuntimeError(f"HTTP {status}：{text[:200]}")
     return json.loads(text)
 
 
-def setup(base_url=DEFAULT_URL, key=None, model="kev-latest", quiet=False):
+def setup(base_url=DEFAULT_URL, key=None, model="kev-latest", quiet=False, _auto=False):
     """判定モデルの場所を指定する。手元の kev なら既定のまま。TypeSafe の Jev なら
     setup("https://api.typesafe.ai", key="…", model="jev-latest")。届かなければ規則版で動く"""
-    MODEL.update(base_url=(base_url or "").rstrip("/") or None, key=key, model=model, probed=True)
+    MODEL.update(base_url=(base_url or "").rstrip("/") or None, key=key, model=model, probed=True,
+                 auto=_auto, probe_error=None)
     if not MODEL["base_url"]:
         if not quiet:
             print("判定モデルは使いません（規則版で動きます）")
         return False
     try:
-        info = _http("GET", MODEL["base_url"] + "/v1/models", key=key, timeout=5)
+        info = _http("GET", MODEL["base_url"] + "/v1/models", key=key, timeout=PROBE_TIMEOUT)
         names = [m.get("name") for m in info.get("data", info.get("models", []))] if isinstance(info, dict) else []
         if not quiet:
             print(f"判定モデルにつながりました：{MODEL['base_url']}" + (f"（{', '.join(n for n in names if n)}）" if names else ""))
@@ -194,14 +207,56 @@ def setup(base_url=DEFAULT_URL, key=None, model="kev-latest", quiet=False):
     except Exception as e:
         if not quiet:
             print(f"判定モデルに届きません（規則版で動きます）：{e}")
-        MODEL["base_url"] = None
+        MODEL.update(base_url=None, probe_error=str(e))
         return False
 
 
 def _probe():
-    """最初の一回だけ、手元の kev が動いているかを探す"""
-    if not MODEL["probed"]:
-        setup(DEFAULT_URL, quiet=True)
+    """手元の kev が動いているかを探す。見つからなければ、何回かまでは次の呼び出しでもう一度探す
+    （ブラウザの許可を押したあとの呼び出しで、自動的につながるように）"""
+    if MODEL["base_url"] or (MODEL["probed"] and not MODEL["auto"]):
+        return
+    if MODEL["tries"] >= PROBE_TRIES:
+        return
+    MODEL["tries"] += 1
+    setup(DEFAULT_URL, quiet=True, _auto=True)
+
+
+def tsunagu(base_url=DEFAULT_URL):
+    """ブラウザ（JupyterLite）で、ページの側から判定モデルにつなぐ。
+    Chrome 142 以降は、公開サイトから 127.0.0.1 へ初めてつなぐとき「ローカルネットワーク上のデバイス…」の許可を
+    聞いてくる。ノートの計算はワーカーの中で動いていて、そこからは許可を聞けないことがあるので、ここで一度
+    ページから聞く。許可はサイト（jxta.github.io）に対して記憶されるので、次からは聞かれない。
+    手元の Python（JupyterLab）では setup() と同じ"""
+    url = (base_url or DEFAULT_URL).rstrip("/")
+    MODEL.update(base_url=None, probed=False, auto=True, tries=0, probe_error=None)
+    if sys.platform != "emscripten":
+        return setup(url, _auto=True)
+    from IPython.display import display, HTML
+    import uuid
+    uid = "tsunagu-" + uuid.uuid4().hex[:8]
+    display(HTML(f"""
+<div id="{uid}" style="font-family:sans-serif;font-size:0.95em;line-height:1.6">
+  <span class="msg">つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。</span>
+  <button style="margin-left:0.6em">もう一度つなぐ</button>
+</div>
+<script>
+(function(){{
+  var box = document.getElementById("{uid}"); if (!box) return;
+  var msg = box.querySelector(".msg"), btn = box.querySelector("button");
+  function go(){{
+    msg.textContent = "つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。";
+    fetch("{url}/v1/models", {{cache: "no-store"}}).then(function(r){{ return r.json(); }}).then(function(j){{
+      var names = ((j && (j.models || j.data)) || []).map(function(m){{ return m.name; }}).filter(Boolean).join("、");
+      msg.textContent = "つながりました：{url}" + (names ? "（" + names + "）" : "") + "　この後の kiku() はこのモデルに聞きます。";
+    }}).catch(function(e){{
+      msg.textContent = "つながりません（" + e + "）。kev が動いているか（ターミナルで curl localhost:8009/v1/models）、"
+        + "このサイトのローカルネットワークへのアクセスを「ブロック」していないか（アドレス欄左のアイコン → サイトの設定）を見て、もう一度。";
+    }});
+  }}
+  btn.onclick = go; go();
+}})();
+</script>"""))
 
 
 def _score_model(text):
@@ -237,7 +292,7 @@ def score(text):
         except Exception as e:
             MODEL["last"] = {"source": "rules", "error": str(e)}
     else:
-        MODEL["last"] = {"source": "rules"}
+        MODEL["last"] = {"source": "rules", "probe_error": MODEL["probe_error"]}
     f = features(text)
     return _linear(f, KOUHO, WEIGHTS, BIAS), f
 
@@ -266,7 +321,13 @@ def kiku(text, show=True):
             nl = "、".join(f"{k} {v:.2f}" for k, v in meta["nouls"].items())
             print(f"判定：{meta['model']}（{meta['url']}、{meta['ms']} ms）　特徴の確率：{nl}")
         else:
-            print("判定：規則版" + ("（判定モデルに届かず：" + meta["error"][:60] + "）" if meta.get("error") else "（手元に判定モデルなし）"))
+            if meta.get("error"):                       # つながっていたのに、この一回が失敗した
+                why = "（判定モデルに届かず：" + meta["error"][:60] + "）"
+            elif meta.get("probe_error") and sys.platform == "emscripten":
+                why = "（手元に判定モデルなし。動かしているのにこう出るなら、tsunagu() を一度）"
+            else:
+                why = "（手元に判定モデルなし）"
+            print("判定：規則版" + why)
         print("反応した特徴：" + ("、".join(sorted(f)) if f else "なし"))
         print()
         print("  " + _pad("候補", 20) + "  数")

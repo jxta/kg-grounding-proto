@@ -126,7 +126,7 @@ Web アプリは **入口と全体の整理**、本格的な実験は **Jupyter 
 - **実験は各自の好みで**。「次に何をたしかめる？」と聞くと、弱いノードに向く短い実験から勧める。用意した実験に無いことは「自由実験」ノートで試し、結果を `report("scratch", "…")` で送る
 - **地図の編集も AI と一緒に**。「一意性を説明できるにしたい」→ AI が理由を聞き、印の提案カードを出す。「素数と篩をつなぎたい」→ 道の提案カード
 - 地図は JSON に書き出せ、ノート版の `my_map.json` と同じ形。ブラウザにも自動保存される
-- **実験10「てん」と判定器**：数の上に、その数を割り切る 2 以上の数の個数だけ点を打つ絵から始める（説明は書かない）。見えたことを自分の言葉で書くと、`handan.py` が候補（問い返す／次の実験を促す／地図への記入を促す／黙って待つ）ごとの数を出し、いちばん大きい反応だけを返す。文章は作らない。候補と反応文は人が先に書いてある。手元の Mac で [kev](https://github.com/jaredpalmer/kev)（TypeSafe の Jev と同じ API を話す公開重みの判定モデル。Apple Silicon では MLX で動く）を `uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009` と起こしておくと、`kiku()` は自動でそれに判定を任せる（Choice 1 本と Noul 4 本を一度に投げる）。届かなければ言葉の規則で動き、表は同じ。別の場所や Jev は `setup(base_url, key)`。最後の `report()` で地図に届き、どのノードの根拠にするかは地図の側で決める
+- **実験10「てん」と判定器**：数の上に、その数を割り切る 2 以上の数の個数だけ点を打つ絵から始める（説明は書かない）。見えたことを自分の言葉で書くと、`handan.py` が候補（問い返す／次の実験を促す／地図への記入を促す／黙って待つ）ごとの数を出し、いちばん大きい反応だけを返す。文章は作らない。候補と反応文は人が先に書いてある。手元の Mac で [kev](https://github.com/jaredpalmer/kev)（TypeSafe の Jev と同じ API を話す公開重みの判定モデル。Apple Silicon では MLX で動く）を起こしておくと（`git clone https://github.com/jaredpalmer/kev.git && cd kev && uv sync --extra serve` のあと、その中で `uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009`。初回はモデルの取得で数 GB 落ちる）、`kiku()` は自動でそれに判定を任せる（Choice 1 本と Noul 4 本を一度に投げる）。届かなければ言葉の規則で動き、表は同じ。別の場所や Jev は `setup(base_url, key)`。GitHub Pages の JupyterLite から 127.0.0.1 へつなぐ初回だけ、Chrome（142 以降）が「ローカルネットワーク…への接続」の許可を聞くので「許可」。聞かれずに規則版に落ちるときは `tsunagu()` を一度（ページの側から許可を取る。サイトごとに記憶される）。最後の `report()` で地図に届き、どのノードの根拠にするかは地図の側で決める
 
 | ファイル | 用途 |
 |:--|:--|

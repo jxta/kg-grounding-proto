@@ -13,7 +13,7 @@
 import sys; sys.path.insert(0, ".")
 import numpy, matplotlib, sympy   # JupyterLite はこの行を見て部品を読み込む（消さない）
 from kg_tools import *
-from handan import kiku
+from handan import kiku, tsunagu
 
 ten(30)
 
@@ -36,6 +36,9 @@ kazoeru(100, 10);    # 10 ごとに、点がひとつだけの数は何個？（
 # どれを出すかを、数で決めるだけ。候補ごとの数も見える。
 #
 # 手元のパソコンで判定モデルを動かしていれば（`handan.py` の説明を見る）、`kiku()` はそれに聞く。なければ、言葉の規則で決める。表はどちらも同じ。
+#
+# 判定モデルを動かしているとき、初回だけブラウザが「ローカルネットワーク…への接続」の許可を聞いてくるので「許可」。
+# 聞かれないのに「規則版」と出るなら、新しいセルで `tsunagu()` を一度実行してから、もう一度。
 
 # %%
 mita = """
