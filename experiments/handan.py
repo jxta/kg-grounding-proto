@@ -157,22 +157,17 @@ SHITSUMON = {
             "matsu":    "黙って待つ（まだ書きかけ）",
         },
     },
+    # 問いの選択。候補は「文に何が書いてあるか」で書く。「〜を聞く」という行動や「どれにも当てはまらないとき」という
+    # 否定条件で書くと、4B のモデルは最後の候補に寄る（2026-10-26 の実測：どの文でも nani が 0.5〜0.8）。
+    # 書いてあることの形にそろえたら 10 文中 9 文が狙いどおり
     "toi": {
         "type": "choice",
-        "instructions": "\n".join([
-            "場面：中学生が、1 から N までの数の上に、その数を割り切る 2 以上の数の個数だけ点を打った絵（点がひとつだけの数は素数）を見て、"
-            "見えたことを自分の言葉で書いた。先生役は答えを教えず、根拠を数や範囲で言わせるための問いを一つだけ返す。",
-            "方針（上から順に見て、最初に当てはまったものを選ぶ。下の方針は見ない）：",
-            "1. 「半分」「倍」「ぐっと減る」「じょじょに」のように、どのくらい減るか・どんな速さかを言葉で言っている → kurabe",
-            "2. 「減る」「まばら」「少なくなる」とだけ言っていて、どのくらいかを言っていない → hayasa",
-            "3. 「なくならない」「無限」「ずっと」のように、見た範囲の先のことを言っている → dokomade",
-            "4. それ以外（何を見てそう思ったのかが書かれていない、絵と合わない） → nani",
-        ]),
+        "instructions": "中学生が、数の上に点を打った絵（点がひとつだけの数は素数）を見て書いた文です。文に書いてあることに最も近いものを一つ選んでください。",
         "criteria": {
-            "hayasa":   "どのくらいの速さで減るのかを、10 ごとに数えて数で言わせる",
-            "kurabe":   "何と何を比べて「半分」などと言ったのかを聞き、範囲を数えて比べさせる",
-            "dokomade": "どこまで見たかを聞き、見た範囲のことと、その先の主張を分けさせる",
-            "nani":     "何を見てそう思ったのかを聞く",
+            "hayasa":   "「減る」「まばら」「少なくなる」「間があく」と書いてある（どのくらい減るかは書いていない）",
+            "kurabe":   "「半分」「倍」「ぐっと」「じょじょに」「急に」のように、どのくらい減るか・どんな速さで減るかが書いてある",
+            "dokomade": "「なくならない」「無限」「ずっと」「いつまでも」のように、見た範囲の先のことが書いてある",
+            "nani":     "減ること・速さ・先のことのどれも書いていない（別のこと、疑問、間違った観察）",
         },
     },
     "kazoeta":   {"type": "noul", "instructions": "数えた結果（個数や見た範囲）が数字で具体的に書いてあるか",
@@ -270,12 +265,13 @@ def _probe():
     setup(DEFAULT_URL, quiet=True, _auto=True)
 
 
-def tsunagu(base_url=DEFAULT_URL, model=None):
+def tsunagu(base_url=DEFAULT_URL, model=None, keep=60):
     """ブラウザ（JupyterLite）で、ページの側から判定モデルにつなぐ（暖機も兼ねる）。
     Chrome 142 以降は、公開サイトから 127.0.0.1 へ初めてつなぐとき「ローカルネットワーク上のデバイス…」の許可を
     聞いてくる。ノートの計算はワーカーの中で動いていて、そこからは許可を聞けないことがあるので、ここで一度
     ページから聞く。許可はサイト（jxta.github.io）に対して記憶されるので、次からは聞かれない。
-    起動直後の kev は最初の一回に 30 秒ほどかかる。ここで一度通しておけば、kiku() は 1〜3 秒で返る。
+    起動直後の kev は最初の一回に 30 秒ほどかかる。しばらく使わないとまた冷える（メモリから退避される）ので、
+    keep 秒ごと（既定 60）に小さな ping を送って温め続ける。keep=0 で止める。
     手元の Python（JupyterLab）では setup() と同じ"""
     url = (base_url or DEFAULT_URL).rstrip("/")
     model = model or MODEL["model"]
@@ -290,17 +286,29 @@ def tsunagu(base_url=DEFAULT_URL, model=None):
 <div id="{uid}" style="font-family:sans-serif;font-size:0.95em;line-height:1.6">
   <span class="msg">つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。起動直後は 30 秒ほどかかる。</span>
   <button style="margin-left:0.6em">もう一度つなぐ</button>
+  <div class="keep" style="color:#777;font-size:0.85em"></div>
 </div>
 <script>
 (function(){{
   var box = document.getElementById("{uid}"); if (!box) return;
-  var msg = box.querySelector(".msg"), btn = box.querySelector("button");
+  var msg = box.querySelector(".msg"), btn = box.querySelector("button"), keepEl = box.querySelector(".keep");
+  var keep = {int(keep or 0)}, timer = null;
+  function post(){{
+    return fetch("{url}/v1/systemone", {{method: "POST", headers: {{"content-type": "application/json"}}, body: {json.dumps(body, ensure_ascii=False)}}})
+      .then(function(r){{ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }});
+  }}
+  function ping(){{
+    if (!document.contains(box)) {{ clearInterval(timer); return; }}   // 出力が消えたら止める
+    var t0 = Date.now();
+    post().then(function(){{ keepEl.textContent = "温め続けています（" + keep + " 秒ごと）　最終 " + new Date().toLocaleTimeString() + "（" + (Date.now() - t0) + " ms）"; }})
+          .catch(function(e){{ keepEl.textContent = "温めの ping が失敗（" + e + "）"; }});
+  }}
   function go(){{
     msg.textContent = "つないでいます… ブラウザが「ローカルネットワーク…への接続」の許可を求めたら「許可」。起動直後は 30 秒ほどかかる。";
     var t0 = Date.now();
-    fetch("{url}/v1/systemone", {{method: "POST", headers: {{"content-type": "application/json"}}, body: {json.dumps(body, ensure_ascii=False)}}})
-    .then(function(r){{ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }}).then(function(j){{
+    post().then(function(j){{
       msg.textContent = "つながりました：{url}（" + (j.model || "{model}") + "、" + (Date.now() - t0) + " ms）　この後の kiku() はこのモデルに聞きます。";
+      if (keep > 0 && !timer) {{ timer = setInterval(ping, keep * 1000); keepEl.textContent = "温め続けています（" + keep + " 秒ごと）"; }}
     }}).catch(function(e){{
       msg.textContent = "つながりません（" + e + "）。kev が動いているか（ターミナルで curl localhost:8009/v1/models）、"
         + "このサイトのローカルネットワークへのアクセスを「ブロック」していないか（アドレス欄左のアイコン → サイトの設定）を見て、もう一度。";
@@ -437,7 +445,9 @@ JIREI = [
     ("点がひとつの数は、だんだん少なくなる気がする",                       "toikaesu", "hayasa"),
     ("素数は無限にある",                                                   "toikaesu", "dokomade"),
     ("右に行くほど、点がひとつの数が減っている。でも 90 のあたりにもある", "toikaesu", "hayasa"),
-    ("2 と 3 だけが隣どうし。あとは離れている",                           "toikaesu", "dokomade"),
+    ("右のほうは、点がひとつだけの数が 100 のあたりで 1 個しかない。急に減った", "toikaesu", "kurabe"),
+    ("点がひとつの数は、ずっと出てくると思う",                             "toikaesu", "dokomade"),
+    ("2 と 3 だけが隣どうし。あとは離れている",                           "toikaesu", "nani"),
     ("なぜ 1 には点がないの？",                                            "toikaesu", "nani"),
     ("全部の数に点がある",                                                 "toikaesu", "nani"),
     ("10 ごとに 4, 4, 2, 2, 3, 2, 2, 3, 2, 1 個。だんだん減る",             "chizu", None),
